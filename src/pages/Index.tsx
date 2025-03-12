@@ -1,11 +1,34 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useChat } from '@/context/ChatContext';
+import { ChatHeader } from '@/components/ChatHeader';
+import { ChatSidebar } from '@/components/ChatSidebar';
+import { ChatMessages } from '@/components/ChatMessages';
+import { ChatInput } from '@/components/ChatInput';
+import { ApiKeyForm } from '@/components/ApiKeyForm';
 
 const Index = () => {
+  const { isApiKeySet } = useChat();
+
+  if (!isApiKeySet) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <ChatHeader />
+        <div className="flex-1 flex items-center justify-center p-4">
+          <ApiKeyForm />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="min-h-screen flex flex-col">
+      <ChatHeader />
+      <div className="flex-1 flex flex-col md:ml-72 relative">
+        <ChatSidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <ChatMessages />
+          <ChatInput />
+        </div>
       </div>
     </div>
   );
