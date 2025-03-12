@@ -79,14 +79,14 @@ export function ChatMessages() {
                 )}
                 
                 <div className="flex-1 overflow-hidden">
-                  <ReactMarkdown
-                    className={cn(
-                      "prose dark:prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:my-2",
-                      "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none"
-                    )}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
+                  <div className={cn(
+                    "prose dark:prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:my-2",
+                    "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none"
+                  )}>
+                    <ReactMarkdown>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
                   
                   {message.sources && message.sources.length > 0 && (
                     <RagSources sources={message.sources} />
