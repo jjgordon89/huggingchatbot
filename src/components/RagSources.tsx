@@ -1,5 +1,5 @@
 
-import { ChevronDown, ChevronUp, BookOpen, FileType } from 'lucide-react';
+import { ChevronDown, ChevronUp, BookOpen, FileType, Globe } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +14,9 @@ export function RagSources({ sources }: { sources: string[] }) {
   }
   
   const renderSourceIcon = (source: string) => {
+    // Check if it's a web source
+    if (source.startsWith('Web:')) return <Globe className="h-3 w-3" />;
+    
     // Extract document type from source string
     if (source.includes('pdf') || source.includes('PDF')) return 'PDF';
     if (source.includes('csv') || source.includes('CSV')) return 'CSV';
@@ -44,8 +47,10 @@ export function RagSources({ sources }: { sources: string[] }) {
         <div className="mt-2 space-y-1 pl-4 border-l-2 border-muted">
           {sources.map((source, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <Badge variant="outline" className="h-5 px-1.5 font-mono text-xs">
-                {renderSourceIcon(source)}
+              <Badge variant="outline" className="h-5 px-1.5 font-mono text-xs flex items-center">
+                {typeof renderSourceIcon(source) === 'string' ? 
+                  renderSourceIcon(source) : 
+                  renderSourceIcon(source)}
               </Badge>
               <span className="text-muted-foreground">{source}</span>
             </div>

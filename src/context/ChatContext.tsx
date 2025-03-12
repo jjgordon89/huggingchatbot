@@ -13,6 +13,7 @@ import {
   DocumentType
 } from '@/lib/api';
 import { useToast } from "@/hooks/use-toast";
+import { searchWeb, formatSearchResultsAsContext } from '@/lib/webSearchService';
 
 // Define the context type
 type ChatContextType = {
@@ -24,7 +25,9 @@ type ChatContextType = {
   availableModels: HuggingFaceModel[];
   isApiKeySet: boolean;
   ragEnabled: boolean;
+  webSearchEnabled: boolean;
   setRagEnabled: (enabled: boolean) => void;
+  setWebSearchEnabled: (enabled: boolean) => void;
   sendMessage: (content: string) => Promise<void>;
   startNewChat: () => void;
   switchChat: (chatId: string) => void;
@@ -45,6 +48,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeModel, setActiveModel] = useState<HuggingFaceModel>(AVAILABLE_MODELS[0]);
   const [isApiKeySet, setIsApiKeySet] = useState<boolean>(!!getApiKey());
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
   
   const { toast } = useToast();
 
@@ -54,6 +58,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedActiveChatId = localStorage.getItem('activeChatId');
     const savedActiveModelId = localStorage.getItem('activeModelId');
     const savedRagEnabled = localStorage.getItem('ragEnabled');
+    const savedWebSearchEnabled = localStorage.getItem('webSearchEnabled');
     
     if (savedChats) {
       try {
@@ -75,6 +80,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedRagEnabled) {
       setRagEnabled(savedRagEnabled === 'true');
     }
+
+    if (savedWebSearchEnabled) {
+      setWebSearchEnabled(savedWebSearchEnabled === 'true');
+    }
   }, []);
 
   // Effect to save to localStorage when state changes
@@ -89,7 +98,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     localStorage.setItem('activeModelId', activeModel.id);
     localStorage.setItem('ragEnabled', ragEnabled.toString());
-  }, [chats, activeChatId, activeModel.id, ragEnabled]);
+    localStorage.setItem('webSearchEnabled', webSearchEnabled.toString());
+  }, [chats, activeChatId, activeModel.id, ragEnabled, webSearchEnabled]);
 
   // Get the active chat's messages
   const messages = activeChatId 
@@ -211,7 +221,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       
       // If RAG is enabled, search for similar documents
-      let context = undefined;
+      let context: any = undefined;
+      let sources: string[] = [];
+      
       if (ragEnabled) {
         try {
           const similarDocs = await searchSimilarDocuments(content);
@@ -231,11 +243,58 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               })
             };
             
+            sources = context.sources;
             console.log('RAG context:', context);
           }
         } catch (error) {
           console.error('Error in RAG processing:', error);
           // Continue without RAG if it fails
+        }
+      }
+      
+      // If web search is enabled, search the web
+      if (webSearchEnabled) {
+        try {
+          console.log('Performing web search for:', content);
+          const searchResponse = await searchWeb(content);
+          
+          if (searchResponse.results.length > 0) {
+            // Format search results as context
+            const searchContext = formatSearchResultsAsContext(searchResponse.results);
+            
+            // Add search context to existing context
+            if (context) {
+              context.documents = [
+                ...(context.documents || []),
+                searchContext
+              ];
+              
+              // Add search results as sources
+              context.sources = [
+                ...(context.sources || []),
+                ...searchResponse.results.map(result => `Web: ${result.title} (${result.source})`)
+              ];
+              
+              sources = context.sources;
+            } else {
+              context = {
+                documents: [searchContext],
+                sources: searchResponse.results.map(result => `Web: ${result.title} (${result.source})`)
+              };
+              
+              sources = context.sources;
+            }
+            
+            console.log('Web search context:', searchContext);
+          }
+        } catch (error) {
+          console.error('Error in web search processing:', error);
+          toast({
+            title: "Web Search Failed",
+            description: "Couldn't retrieve search results, but continuing with AI response",
+            variant: "destructive"
+          });
+          // Continue without web search if it fails
         }
       }
       
@@ -257,7 +316,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: uuidv4(),
         role: 'assistant',
         content: assistantContent,
-        timestamp: new Date()
+        timestamp: new Date(),
+        sources: sources.length > 0 ? sources : undefined
       };
       
       // Add assistant message to chat
@@ -266,7 +326,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (chat.id === activeChatId) {
             return {
               ...chat,
-              messages: [...chat.messages, userMessage, assistantMessage]
+              messages: [...chat.messages, userMessage, {
+                ...assistantMessage,
+                sources
+              }]
             };
           }
           return chat;
@@ -295,7 +358,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, chats, activeModel.id, toast, ragEnabled]);
+  }, [activeChatId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled]);
 
   const value = {
     messages,
@@ -306,7 +369,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     availableModels: AVAILABLE_MODELS,
     isApiKeySet,
     ragEnabled,
+    webSearchEnabled,
     setRagEnabled,
+    setWebSearchEnabled,
     sendMessage,
     startNewChat,
     switchChat,

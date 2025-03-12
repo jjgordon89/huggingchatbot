@@ -3,10 +3,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export function ChatInput() {
-  const { sendMessage, isLoading, isApiKeySet } = useChat();
+  const { sendMessage, isLoading, isApiKeySet, ragEnabled, webSearchEnabled } = useChat();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -36,6 +37,22 @@ export function ChatInput() {
   return (
     <div className="p-4 border-t bg-background">
       <div className="max-w-3xl mx-auto">
+        {(ragEnabled || webSearchEnabled) && (
+          <div className="flex items-center gap-2 mb-2 justify-center">
+            {ragEnabled && (
+              <Badge variant="outline" className="bg-primary/10">
+                RAG Enabled
+              </Badge>
+            )}
+            {webSearchEnabled && (
+              <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
+                <Search className="h-3 w-3" />
+                <span>Web Search</span>
+              </Badge>
+            )}
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="relative">
           <Textarea
             ref={textareaRef}
@@ -47,6 +64,8 @@ export function ChatInput() {
                 ? "Please set your Hugging Face API key in settings"
                 : isLoading
                 ? "Waiting for response..."
+                : webSearchEnabled 
+                ? "Ask anything (web search enabled)..."
                 : "Type a message..."
             }
             disabled={isLoading || !isApiKeySet}

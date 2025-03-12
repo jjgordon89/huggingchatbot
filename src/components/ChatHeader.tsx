@@ -1,195 +1,171 @@
 
-import { useState } from 'react';
-import { useChat } from '@/context/ChatContext';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Settings, Code, Plus, BrainCircuit, Lightbulb, Menu } from 'lucide-react';
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ApiKeyForm } from "./ApiKeyForm";
+import { PlusCircle, Settings, Database, FileUp, Sparkles, Search } from "lucide-react";
+import { useState } from "react";
+import { useChat } from "@/context/ChatContext";
+import { useMobile } from "@/hooks/use-mobile";
 
 export function ChatHeader() {
   const { 
     startNewChat, 
     isApiKeySet, 
-    setApiKey, 
     activeModel, 
-    availableModels, 
-    setActiveModel,
+    setActiveModel, 
+    availableModels,
     ragEnabled,
-    setRagEnabled
+    setRagEnabled,
+    webSearchEnabled,
+    setWebSearchEnabled
   } = useChat();
+  const [apiDialogOpen, setApiDialogOpen] = useState(false);
+  const isMobile = useMobile();
   
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const { toast } = useToast();
-
-  const handleApiKeySubmit = () => {
-    if (apiKeyInput.trim()) {
-      const success = setApiKey(apiKeyInput.trim());
-      if (success) {
-        setIsSettingsOpen(false);
-        toast({
-          title: "API Key Saved",
-          description: "Your Hugging Face API key has been saved"
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to save API key",
-          variant: "destructive"
-        });
-      }
-    }
-  };
-
   return (
-    <header className="flex items-center justify-between h-[--header-height] px-6 border-b backdrop-blur-sm bg-background/80 z-10 sticky top-0">
-      <div className="flex items-center gap-2 font-medium text-lg">
-        <BrainCircuit className="h-5 w-5 text-primary" />
-        <span>AI Chatbot</span>
-        {activeModel && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-sm text-muted-foreground gap-1.5 ml-1 group"
-            onClick={() => setIsModelSelectorOpen(true)}
-          >
-            <span className="font-normal hidden sm:inline">
-              Model: 
-            </span>
-            <span className="group-hover:text-primary transition-colors">{activeModel.name}</span>
-          </Button>
-        )}
+    <header className="border-b h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-5 w-5" />
+        <h1 className="text-lg font-semibold">AI Chat</h1>
       </div>
       
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full focus-ring hover:bg-secondary"
-          onClick={() => setRagEnabled(!ragEnabled)}
-          title={ragEnabled ? "RAG Enabled" : "RAG Disabled"}
-        >
-          <Lightbulb className={`h-[1.2rem] w-[1.2rem] ${ragEnabled ? 'text-amber-500' : 'text-muted-foreground'}`} />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full focus-ring hover:bg-secondary"
-          onClick={() => setIsSettingsOpen(true)}
-        >
-          <Settings className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />
-        </Button>
-        
-        <Button
-          onClick={startNewChat}
-          className="gap-1.5 sm:px-4 sm:py-2 sm:h-9 smooth-transition focus-ring"
-          size="sm"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">New Chat</span>
-        </Button>
-      </div>
-
-      {/* Settings Dialog */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Hugging Face API Settings</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Please enter your Hugging Face API key to use the chatbot. 
-                You can get one from your <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer" className="text-primary underline hover:text-primary/80">Hugging Face account settings</a>.
-              </p>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="password"
-                  placeholder="Enter your Hugging Face API key"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-              {isApiKeySet && (
-                <p className="text-xs text-muted-foreground">
-                  An API key is already set. Entering a new one will replace it.
-                </p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Retrieval-Augmented Generation (RAG)</h4>
-              <p className="text-sm text-muted-foreground">
-                Enable RAG to improve responses by searching for relevant information from your documents.
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={ragEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setRagEnabled(true)}
-                  className="flex-1"
-                >
-                  Enable RAG
-                </Button>
-                <Button
-                  variant={!ragEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setRagEnabled(false)}
-                  className="flex-1"
-                >
-                  Disable RAG
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleApiKeySubmit} disabled={!apiKeyInput.trim()}>
-              Save API Key
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Model Selector Dialog */}
-      <Dialog open={isModelSelectorOpen} onOpenChange={setIsModelSelectorOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select AI Model</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            {availableModels.filter(model => model.task !== 'feature-extraction').map((model) => (
-              <Button
-                key={model.id}
-                variant={model.id === activeModel.id ? "default" : "outline"}
-                className={`justify-start text-left h-auto p-4 ${
-                  model.id === activeModel.id ? 'border-primary/50' : ''
-                }`}
-                onClick={() => {
-                  setActiveModel(model);
-                  setIsModelSelectorOpen(false);
-                }}
+      <div className="flex items-center gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => startNewChat()}
+                aria-label="New Chat"
               >
-                <div className="flex flex-col items-start gap-1">
-                  <div className="font-medium">{model.name}</div>
-                  {model.description && (
-                    <div className="text-xs text-muted-foreground">{model.description}</div>
-                  )}
-                </div>
+                <PlusCircle className="h-5 w-5" />
               </Button>
+            </TooltipTrigger>
+            <TooltipContent>New Chat</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    aria-label="Settings"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Settings</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <Dialog open={apiDialogOpen} onOpenChange={setApiDialogOpen}>
+              <DialogTrigger asChild>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  API Key
+                </DropdownMenuItem>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Hugging Face API Key</DialogTitle>
+                  <DialogDescription>
+                    Enter your Hugging Face API key to access AI models
+                  </DialogDescription>
+                </DialogHeader>
+                <ApiKeyForm onSuccess={() => setApiDialogOpen(false)} />
+              </DialogContent>
+            </Dialog>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Models</DropdownMenuLabel>
+            
+            {availableModels.map(model => (
+              <DropdownMenuItem 
+                key={model.id}
+                onSelect={() => setActiveModel(model)}
+                className="flex items-center justify-between"
+              >
+                <span>{model.name}</span>
+                {activeModel.id === model.id && (
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                )}
+              </DropdownMenuItem>
             ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Knowledge</DropdownMenuLabel>
+            
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setRagEnabled(!ragEnabled);
+              }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                <span>Use Document Knowledge</span>
+              </div>
+              <Switch 
+                checked={ragEnabled} 
+                onCheckedChange={setRagEnabled} 
+                onClick={(e) => e.stopPropagation()}
+              />
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setWebSearchEnabled(!webSearchEnabled);
+              }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                <span>Web Search</span>
+              </div>
+              <Switch 
+                checked={webSearchEnabled} 
+                onCheckedChange={setWebSearchEnabled} 
+                onClick={(e) => e.stopPropagation()}
+              />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }
