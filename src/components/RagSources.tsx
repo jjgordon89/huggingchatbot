@@ -2,9 +2,16 @@
 import { ChevronDown, ChevronUp, BookOpen, FileType } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 export function RagSources({ sources }: { sources: string[] }) {
   const [expanded, setExpanded] = useState(false);
+  const { toast } = useToast();
+  
+  // No sources to display
+  if (!sources || sources.length === 0) {
+    return null;
+  }
   
   const renderSourceIcon = (source: string) => {
     // Extract document type from source string

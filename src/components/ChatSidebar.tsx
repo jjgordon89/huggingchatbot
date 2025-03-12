@@ -34,7 +34,8 @@ import {
   setEmbeddingModel,
   reembedAllDocuments,
   DocumentType,
-  processDocumentFile
+  processDocumentFile,
+  getApiKey
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -110,6 +111,16 @@ export function ChatSidebar() {
   const handleAddDocument = async () => {
     if (docTitle && docContent) {
       try {
+        if (!getApiKey()) {
+          toast({
+            title: "API Key Required",
+            description: "Please set your Hugging Face API key in settings before adding documents",
+            variant: "destructive"
+          });
+          setIsUploadOpen(false);
+          return;
+        }
+        
         await addDocumentToStore(docTitle, docContent, docFilename);
         toast({
           title: "Document Added",
@@ -124,9 +135,15 @@ export function ChatSidebar() {
         }
       } catch (error) {
         console.error('Error adding document:', error);
+        const errorMessage = error instanceof Error 
+          ? (error.message.includes('Invalid credentials') 
+             ? "Invalid API key. Please check your Hugging Face API key in settings." 
+             : error.message)
+          : "Failed to add document to knowledge base";
+          
         toast({
           title: "Error",
-          description: "Failed to add document to knowledge base",
+          description: errorMessage,
           variant: "destructive"
         });
       }

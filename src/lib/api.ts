@@ -56,6 +56,10 @@ export const setApiKey = (key: string) => {
 
 export const getApiKey = () => API_KEY;
 
+export const isApiKeyValid = () => {
+  return !!API_KEY && API_KEY.length > 0 && !API_KEY.includes('Connect Supabase');
+};
+
 // API Endpoints
 const API_BASE_URL = 'https://api-inference.huggingface.co/models';
 
@@ -564,6 +568,11 @@ export const addDocumentToStore = async (
   filename: string
 ): Promise<Document> => {
   try {
+    // Check for valid API key first
+    if (!isApiKeyValid()) {
+      throw new Error('Valid API key required for document embedding');
+    }
+    
     const docType = detectDocumentType(filename, content);
     
     // Create text chunks if document is large
