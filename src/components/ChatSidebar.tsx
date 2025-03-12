@@ -3,7 +3,14 @@ import { useState } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
 import { 
   MessageSquare, 
   Plus, 
@@ -11,20 +18,47 @@ import {
   ChevronLeft, 
   ChevronRight, 
   FileUp, 
-  FilePlus
+  FilePlus,
+  Settings,
+  Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { addDocumentToStore } from '@/lib/api';
+import { 
+  addDocumentToStore, 
+  getAllDocuments, 
+  deleteDocument, 
+  Document as DocType,
+  EMBEDDING_MODELS,
+  getCurrentEmbeddingModel,
+  setEmbeddingModel,
+  reembedAllDocuments,
+  DocumentType
+} from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from '@/components/ui/badge';
 
 export function ChatSidebar() {
-  const { chats, activeChatId, startNewChat, switchChat, deleteChat, clearChats, ragEnabled } = useChat();
+  const { chats, activeChatId, startNewChat, switchChat, deleteChat, clearChats, ragEnabled, setRagEnabled } = useChat();
   const [isOpen, setIsOpen] = useState(true);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [docTitle, setDocTitle] = useState('');
   const [docContent, setDocContent] = useState('');
+  const [docFilename, setDocFilename] = useState('');
+  const [documents, setDocuments] = useState<DocType[]>([]);
+  const [currentEmbeddingModel, setCurrentEmbeddingModel] = useState(getCurrentEmbeddingModel());
+  const [isReembedding, setIsReembedding] = useState(false);
+  
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -38,7 +72,8 @@ export function ChatSidebar() {
       try {
         // Simple text file reader
         const text = await file.text();
-        setDocTitle(file.name);
+        setDocTitle(file.name.split('.')[0]); // Use filename without extension as title
+        setDocFilename(file.name);
         setDocContent(text);
         setIsUploadOpen(true);
       } catch (error) {
@@ -55,7 +90,7 @@ export function ChatSidebar() {
   const handleAddDocument = async () => {
     if (docTitle && docContent) {
       try {
-        await addDocumentToStore(docTitle, docContent);
+        await addDocumentToStore(docTitle, docContent, docFilename);
         toast({
           title: "Document Added",
           description: `"${docTitle}" has been added to the knowledge base`
@@ -63,6 +98,11 @@ export function ChatSidebar() {
         setIsUploadOpen(false);
         setDocTitle('');
         setDocContent('');
+        setDocFilename('');
+        // Refresh documents list if open
+        if (isDocsOpen) {
+          loadDocuments();
+        }
       } catch (error) {
         console.error('Error adding document:', error);
         toast({
@@ -71,6 +111,78 @@ export function ChatSidebar() {
           variant: "destructive"
         });
       }
+    }
+  };
+  
+  const loadDocuments = () => {
+    const docs = getAllDocuments();
+    setDocuments(docs);
+  };
+  
+  const handleDeleteDocument = (docId: string) => {
+    try {
+      const deleted = deleteDocument(docId);
+      if (deleted) {
+        toast({
+          title: "Document Deleted",
+          description: "Document has been removed from the knowledge base"
+        });
+        loadDocuments(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete document",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleChangeEmbeddingModel = async (modelId: string) => {
+    try {
+      setCurrentEmbeddingModel(setEmbeddingModel(modelId));
+      toast({
+        title: "Embedding Model Changed",
+        description: `Using ${currentEmbeddingModel.name} for document embeddings`
+      });
+    } catch (error) {
+      console.error('Error changing embedding model:', error);
+      toast({
+        title: "Error",
+        description: "Failed to change embedding model",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleReembedDocuments = async () => {
+    try {
+      setIsReembedding(true);
+      await reembedAllDocuments(currentEmbeddingModel.id);
+      toast({
+        title: "Documents Re-embedded",
+        description: `All documents have been re-embedded using ${currentEmbeddingModel.name}`
+      });
+    } catch (error) {
+      console.error('Error re-embedding documents:', error);
+      toast({
+        title: "Error",
+        description: "Failed to re-embed documents",
+        variant: "destructive"
+      });
+    } finally {
+      setIsReembedding(false);
+    }
+  };
+  
+  const getDocumentTypeIcon = (type: DocumentType) => {
+    switch (type) {
+      case 'markdown': return 'MD';
+      case 'code': return '</>';
+      case 'json': return '{}';
+      case 'pdf': return 'PDF';
+      default: return 'TXT';
     }
   };
 
@@ -87,15 +199,35 @@ export function ChatSidebar() {
           <h2 className="text-lg font-medium">Conversations</h2>
           <div className="flex gap-1">
             {ragEnabled && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => setIsUploadOpen(true)}
-                title="Add document"
-              >
-                <FilePlus className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => { loadDocuments(); setIsDocsOpen(true); }}
+                  title="View documents"
+                >
+                  <Database className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => setIsSettingsOpen(true)}
+                  title="RAG settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => setIsUploadOpen(true)}
+                  title="Add document"
+                >
+                  <FilePlus className="h-4 w-4" />
+                </Button>
+              </>
             )}
             <Button
               variant="ghost"
@@ -129,20 +261,53 @@ export function ChatSidebar() {
           New Chat
         </Button>
         
+        <div className="mx-4 mb-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-border"></div>
+            <span className="text-xs text-muted-foreground">Features</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+        </div>
+        
+        <div className="mx-4 mb-2">
+          <Button
+            variant={ragEnabled ? "default" : "outline"}
+            size="sm"
+            className="w-full flex justify-between items-center"
+            onClick={() => setRagEnabled(!ragEnabled)}
+          >
+            <span>Knowledge Base (RAG)</span>
+            <span className={cn(
+              "px-2 py-0.5 rounded text-xs",
+              ragEnabled ? "bg-primary-foreground" : "bg-muted text-muted-foreground"
+            )}>
+              {ragEnabled ? "On" : "Off"}
+            </span>
+          </Button>
+        </div>
+        
         {ragEnabled && (
-          <label className="flex items-center gap-2 mx-4 p-2 border rounded-md cursor-pointer hover:bg-accent/10 transition-colors">
+          <label className="flex items-center gap-2 mx-4 p-2 border rounded-md cursor-pointer hover:bg-accent/10 transition-colors mb-2">
             <FileUp className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">Upload document</span>
             <input
               type="file"
               className="hidden"
-              accept=".txt,.md,.json"
+              accept=".txt,.md,.json,.js,.ts,.html,.css,.py"
               onChange={handleFileUpload}
             />
           </label>
         )}
         
-        <ScrollArea className="flex-1 p-4 pt-2">
+        <div className="mx-4 mb-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-border"></div>
+            <span className="text-xs text-muted-foreground">Chats</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+        </div>
+        
+        <ScrollArea className="flex-1 p-4 pt-0">
           <div className="space-y-2">
             {chats.map((chat) => (
               <Button
@@ -255,6 +420,109 @@ export function ChatSidebar() {
               disabled={!docTitle || !docContent}
             >
               Add Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* RAG Settings dialog */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Knowledge Base Settings</DialogTitle>
+            <DialogDescription>
+              Configure retrieval-augmented generation (RAG) settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Embedding Model</label>
+              <Select
+                value={currentEmbeddingModel.id}
+                onValueChange={handleChangeEmbeddingModel}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select embedding model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMBEDDING_MODELS.map(model => (
+                    <SelectItem key={model.id} value={model.id}>
+                      <div className="flex flex-col">
+                        <span>{model.name}</span>
+                        <span className="text-xs text-muted-foreground">{model.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Current: {currentEmbeddingModel.name} ({currentEmbeddingModel.dimensions} dimensions)
+              </p>
+            </div>
+            
+            <Button 
+              onClick={handleReembedDocuments} 
+              disabled={isReembedding || getAllDocuments().length === 0}
+              variant="outline"
+              className="w-full"
+            >
+              {isReembedding ? "Re-embedding..." : "Re-embed All Documents"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Documents dialog */}
+      <Dialog open={isDocsOpen} onOpenChange={setIsDocsOpen}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Knowledge Base Documents</DialogTitle>
+            <DialogDescription>
+              Manage documents used for retrieval-augmented generation.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 pr-4 -mr-4">
+            <div className="space-y-4 py-2">
+              {documents.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No documents added yet. Upload documents to enhance your AI's knowledge.
+                </p>
+              ) : (
+                documents.map(doc => (
+                  <div key={doc.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="h-6 px-2 font-mono">
+                          {getDocumentTypeIcon(doc.type)}
+                        </Badge>
+                        <h4 className="font-medium">{doc.title}</h4>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDeleteDocument(doc.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Added {new Date(doc.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm line-clamp-2 text-muted-foreground">
+                      {doc.content.substring(0, 100)}...
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button
+              onClick={() => setIsUploadOpen(true)}
+              className="w-full"
+            >
+              Add New Document
             </Button>
           </DialogFooter>
         </DialogContent>

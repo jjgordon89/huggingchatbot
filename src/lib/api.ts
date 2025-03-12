@@ -1,4 +1,3 @@
-
 import { useToast } from "@/hooks/use-toast";
 
 // Types
@@ -19,6 +18,24 @@ export type Message = {
 export type ConversationContext = {
   documents?: string[];
   sources?: string[];
+};
+
+export type Document = {
+  id: string;
+  title: string;
+  content: string;
+  type: DocumentType;
+  vector?: number[];
+  createdAt: Date;
+};
+
+export type DocumentType = "text" | "markdown" | "pdf" | "code" | "json";
+
+export type EmbeddingModel = {
+  id: string;
+  name: string;
+  description: string;
+  dimensions: number;
 };
 
 // API Configuration
@@ -54,12 +71,33 @@ export const AVAILABLE_MODELS: HuggingFaceModel[] = [
     name: 'Phi-2', 
     description: 'Compact and efficient language model',
     task: 'text-generation'
+  }
+];
+
+export const EMBEDDING_MODELS: EmbeddingModel[] = [
+  {
+    id: 'BAAI/bge-large-en-v1.5',
+    name: 'BGE Large',
+    description: 'High-performance English embedding model (1024 dimensions)',
+    dimensions: 1024
   },
-  { 
-    id: 'BAAI/bge-large-en-v1.5', 
-    name: 'BGE Embeddings', 
-    description: 'For embedding documents and queries',
-    task: 'feature-extraction'
+  {
+    id: 'BAAI/bge-small-en-v1.5',
+    name: 'BGE Small',
+    description: 'Efficient English embedding model (384 dimensions)',
+    dimensions: 384
+  },
+  {
+    id: 'sentence-transformers/all-MiniLM-L6-v2',
+    name: 'MiniLM',
+    description: 'Lightweight and fast embedding model (384 dimensions)',
+    dimensions: 384
+  },
+  {
+    id: 'thenlper/gte-base',
+    name: 'GTE Base',
+    description: 'General Text Embeddings model (768 dimensions)',
+    dimensions: 768
   }
 ];
 
@@ -74,7 +112,9 @@ export const queryModel = async (
     throw new Error('API key not set');
   }
 
-  const isEmbeddingModel = modelId.includes('bge');
+  const isEmbeddingModel = modelId.includes('bge') || 
+                           modelId.includes('sentence-transformers') ||
+                           modelId.includes('gte');
   
   try {
     // Format the prompt based on the model
@@ -217,10 +257,57 @@ export const formatMessagesForModel = (
   return formattedPrompt;
 };
 
+// Document processing and embedding
+export const detectDocumentType = (filename: string, content: string): DocumentType => {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  
+  if (ext === 'md') return 'markdown';
+  if (ext === 'json') return 'json';
+  if (ext === 'pdf') return 'pdf';
+  
+  // Check for code snippets
+  if (content.includes('function ') || 
+      content.includes('class ') || 
+      content.includes('def ') || 
+      content.includes('import ') ||
+      content.includes('{') && content.includes('}') ||
+      content.includes('<') && content.includes('>')) {
+    return 'code';
+  }
+  
+  return 'text';
+};
+
+// Storage for documents
+let documents: Document[] = JSON.parse(localStorage.getItem('documents') || '[]');
+
+// Default embedding model
+let currentEmbeddingModel: EmbeddingModel = EMBEDDING_MODELS[0];
+
+export const setEmbeddingModel = (modelId: string): EmbeddingModel => {
+  const model = EMBEDDING_MODELS.find(m => m.id === modelId);
+  if (model) {
+    currentEmbeddingModel = model;
+    localStorage.setItem('embeddingModel', modelId);
+  }
+  return currentEmbeddingModel;
+};
+
+export const getCurrentEmbeddingModel = (): EmbeddingModel => {
+  const savedModelId = localStorage.getItem('embeddingModel');
+  if (savedModelId) {
+    const model = EMBEDDING_MODELS.find(m => m.id === savedModelId);
+    if (model) {
+      currentEmbeddingModel = model;
+    }
+  }
+  return currentEmbeddingModel;
+};
+
 // RAG functionality
-export const createEmbeddings = async (texts: string[]): Promise<number[][]> => {
+export const createEmbeddings = async (texts: string[], modelId?: string): Promise<number[][]> => {
   try {
-    const embeddingModel = AVAILABLE_MODELS.find(m => m.task === 'feature-extraction')?.id || 'BAAI/bge-large-en-v1.5';
+    const embeddingModel = modelId || currentEmbeddingModel.id;
     
     const embeddingsResults = await Promise.all(
       texts.map(text => queryModel(embeddingModel, [{ 
@@ -256,43 +343,80 @@ export const cosineSimilarity = (a: number[], b: number[]): number => {
   return dotProduct / (normA * normB);
 };
 
-// Storage for document vectors
-type DocumentVector = {
-  id: string;
-  content: string;
-  vector: number[];
+// Save documents to localStorage
+const saveDocuments = () => {
+  localStorage.setItem('documents', JSON.stringify(documents));
 };
 
-let documentVectors: DocumentVector[] = [];
-
-export const addDocumentToStore = async (id: string, content: string): Promise<void> => {
+// Document management
+export const addDocumentToStore = async (
+  title: string, 
+  content: string, 
+  filename: string
+): Promise<Document> => {
   try {
+    const docType = detectDocumentType(filename, content);
+    
+    // Create text chunks if document is large
+    let processedContent = content;
+    if (content.length > 1000) {
+      // Simple chunking by paragraphs for large documents
+      const chunks = content.split(/\n\s*\n/);
+      processedContent = chunks.join('\n\n'); // Keep it as is for now, chunking handled during retrieval
+    }
+    
+    // Create embedding
     const embedding = await createEmbeddings([content]);
     
-    documentVectors.push({
-      id,
-      content,
+    const newDoc: Document = {
+      id: `doc-${Date.now()}`,
+      title,
+      content: processedContent,
+      type: docType,
       vector: embedding[0],
-    });
+      createdAt: new Date()
+    };
+    
+    documents.push(newDoc);
+    saveDocuments();
+    
+    return newDoc;
   } catch (error) {
     console.error('Error adding document to store:', error);
     throw error;
   }
 };
 
+export const getAllDocuments = (): Document[] => {
+  return documents;
+};
+
+export const deleteDocument = (documentId: string): boolean => {
+  const initialLength = documents.length;
+  documents = documents.filter(doc => doc.id !== documentId);
+  saveDocuments();
+  return documents.length < initialLength;
+};
+
 export const searchSimilarDocuments = async (
   query: string, 
   topK: number = 3
-): Promise<{id: string, content: string, similarity: number}[]> => {
+): Promise<{id: string, title: string, content: string, type: DocumentType, similarity: number}[]> => {
   try {
-    // Get query embedding
+    if (documents.length === 0) {
+      return [];
+    }
+    
+    // Get query embedding using the current embedding model
     const queryEmbedding = await createEmbeddings([query]);
     
     // Calculate similarities
-    const similarities = documentVectors.map(doc => ({
+    const similarities = documents.map(doc => ({
       id: doc.id,
+      title: doc.title,
       content: doc.content,
-      similarity: cosineSimilarity(queryEmbedding[0], doc.vector)
+      type: doc.type,
+      similarity: doc.vector ? cosineSimilarity(queryEmbedding[0], doc.vector) : 0
     }));
     
     // Sort by similarity and get top K
@@ -303,6 +427,34 @@ export const searchSimilarDocuments = async (
     return topDocs;
   } catch (error) {
     console.error('Error searching documents:', error);
+    throw error;
+  }
+};
+
+// Re-embed all documents with a new embedding model
+export const reembedAllDocuments = async (modelId: string): Promise<void> => {
+  try {
+    const model = EMBEDDING_MODELS.find(m => m.id === modelId);
+    if (!model) {
+      throw new Error(`Embedding model ${modelId} not found`);
+    }
+    
+    // Set as current model
+    setEmbeddingModel(modelId);
+    
+    // Re-embed each document
+    for (let i = 0; i < documents.length; i++) {
+      const doc = documents[i];
+      const embedding = await createEmbeddings([doc.content], modelId);
+      documents[i] = {
+        ...doc,
+        vector: embedding[0]
+      };
+    }
+    
+    saveDocuments();
+  } catch (error) {
+    console.error('Error re-embedding documents:', error);
     throw error;
   }
 };

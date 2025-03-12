@@ -1,7 +1,17 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { getApiKey, setApiKey, Message, queryModel, searchSimilarDocuments, AVAILABLE_MODELS, HuggingFaceModel } from '@/lib/api';
+import { 
+  getApiKey, 
+  setApiKey, 
+  Message, 
+  queryModel, 
+  searchSimilarDocuments, 
+  AVAILABLE_MODELS, 
+  HuggingFaceModel,
+  EMBEDDING_MODELS,
+  getCurrentEmbeddingModel,
+  DocumentType
+} from '@/lib/api';
 import { useToast } from "@/hooks/use-toast";
 
 // Define the context type
@@ -206,10 +216,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const similarDocs = await searchSimilarDocuments(content);
           if (similarDocs.length > 0) {
+            // Get the current embedding model info
+            const embeddingModel = getCurrentEmbeddingModel();
+            
+            // Format the context with document information
             context = {
-              documents: similarDocs.map(doc => doc.content),
-              sources: similarDocs.map(doc => doc.id)
+              documents: similarDocs.map(doc => {
+                // Add document type information to help the AI understand the content
+                let docInfo = `[${doc.type.toUpperCase()}] ${doc.title}\n\n`;
+                return docInfo + doc.content;
+              }),
+              sources: similarDocs.map(doc => {
+                return `${doc.title} (${doc.type}, similarity: ${(doc.similarity * 100).toFixed(1)}%)`;
+              })
             };
+            
+            console.log('RAG context:', context);
           }
         } catch (error) {
           console.error('Error in RAG processing:', error);
