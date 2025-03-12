@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,7 +19,8 @@ import {
   FileUp, 
   FilePlus,
   Settings,
-  Database
+  Database,
+  FileType
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -33,7 +33,8 @@ import {
   getCurrentEmbeddingModel,
   setEmbeddingModel,
   reembedAllDocuments,
-  DocumentType
+  DocumentType,
+  processDocumentFile
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -44,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 export function ChatSidebar() {
   const { chats, activeChatId, startNewChat, switchChat, deleteChat, clearChats, ragEnabled, setRagEnabled } = useChat();
@@ -58,7 +60,9 @@ export function ChatSidebar() {
   const [documents, setDocuments] = useState<DocType[]>([]);
   const [currentEmbeddingModel, setCurrentEmbeddingModel] = useState(getCurrentEmbeddingModel());
   const [isReembedding, setIsReembedding] = useState(false);
-  
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -68,22 +72,38 @@ export function ChatSidebar() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      try {
-        // Simple text file reader
-        const text = await file.text();
-        setDocTitle(file.name.split('.')[0]); // Use filename without extension as title
-        setDocFilename(file.name);
-        setDocContent(text);
-        setIsUploadOpen(true);
-      } catch (error) {
-        console.error('Error reading file:', error);
-        toast({
-          title: "Error",
-          description: "Failed to read file",
-          variant: "destructive"
-        });
+    if (!file) return;
+    
+    try {
+      setIsUploading(true);
+      setUploadProgress(10);
+      
+      const result = await processDocumentFile(file, (progress) => {
+        setUploadProgress(10 + progress * 0.8);
+      });
+      
+      setUploadProgress(90);
+      
+      setDocTitle(result.title);
+      setDocFilename(file.name);
+      setDocContent(result.content);
+      setIsUploadOpen(true);
+      setUploadProgress(100);
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
+      
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process file",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -99,7 +119,6 @@ export function ChatSidebar() {
         setDocTitle('');
         setDocContent('');
         setDocFilename('');
-        // Refresh documents list if open
         if (isDocsOpen) {
           loadDocuments();
         }
@@ -127,7 +146,7 @@ export function ChatSidebar() {
           title: "Document Deleted",
           description: "Document has been removed from the knowledge base"
         });
-        loadDocuments(); // Refresh the list
+        loadDocuments();
       }
     } catch (error) {
       console.error('Error deleting document:', error);
@@ -182,8 +201,15 @@ export function ChatSidebar() {
       case 'code': return '</>';
       case 'json': return '{}';
       case 'pdf': return 'PDF';
+      case 'csv': return 'CSV';
+      case 'excel': return 'XLS';
+      case 'html': return 'HTML';
       default: return 'TXT';
     }
+  };
+  
+  const getAcceptedFileTypes = () => {
+    return ".txt,.md,.json,.js,.ts,.html,.css,.py,.pdf,.csv,.xlsx,.xls,.docx,.doc";
   };
 
   return (
@@ -287,15 +313,23 @@ export function ChatSidebar() {
         </div>
         
         {ragEnabled && (
-          <label className="flex items-center gap-2 mx-4 p-2 border rounded-md cursor-pointer hover:bg-accent/10 transition-colors mb-2">
+          <label className="flex items-center gap-2 mx-4 p-2 border rounded-md cursor-pointer hover:bg-accent/10 transition-colors mb-2 relative">
             <FileUp className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">Upload document</span>
             <input
+              ref={fileInputRef}
               type="file"
               className="hidden"
-              accept=".txt,.md,.json,.js,.ts,.html,.css,.py"
+              accept={getAcceptedFileTypes()}
               onChange={handleFileUpload}
+              disabled={isUploading}
             />
+            {isUploading && (
+              <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
+                <Progress value={uploadProgress} className="w-4/5 h-2 mb-1" />
+                <span className="text-xs text-muted-foreground">Processing...</span>
+              </div>
+            )}
           </label>
         )}
         
@@ -345,7 +379,6 @@ export function ChatSidebar() {
         </ScrollArea>
       </div>
       
-      {/* Toggle button */}
       <Button
         variant="outline"
         size="icon"
@@ -359,7 +392,6 @@ export function ChatSidebar() {
         <ChevronRight className="h-4 w-4" />
       </Button>
 
-      {/* Confirm clear chats dialog */}
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <DialogContent>
           <DialogHeader>
@@ -383,7 +415,6 @@ export function ChatSidebar() {
         </DialogContent>
       </Dialog>
 
-      {/* Upload document dialog */}
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -411,6 +442,9 @@ export function ChatSidebar() {
                 onChange={(e) => setDocContent(e.target.value)}
                 placeholder="Enter or paste document content"
               />
+              <p className="text-xs text-muted-foreground">
+                From file: {docFilename || "No file selected"}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -425,7 +459,6 @@ export function ChatSidebar() {
         </DialogContent>
       </Dialog>
       
-      {/* RAG Settings dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent>
           <DialogHeader>
@@ -472,7 +505,6 @@ export function ChatSidebar() {
         </DialogContent>
       </Dialog>
       
-      {/* Documents dialog */}
       <Dialog open={isDocsOpen} onOpenChange={setIsDocsOpen}>
         <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>

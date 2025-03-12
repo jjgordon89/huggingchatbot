@@ -1,4 +1,10 @@
 import { useToast } from "@/hooks/use-toast";
+import * as pdfjs from 'pdfjs-dist';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+
+// Set worker path for PDF.js
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 // Types
 export type HuggingFaceModel = {
@@ -27,9 +33,10 @@ export type Document = {
   type: DocumentType;
   vector?: number[];
   createdAt: Date;
+  metadata?: Record<string, any>;
 };
 
-export type DocumentType = "text" | "markdown" | "pdf" | "code" | "json";
+export type DocumentType = "text" | "markdown" | "pdf" | "code" | "json" | "csv" | "excel" | "html";
 
 export type EmbeddingModel = {
   id: string;
@@ -257,6 +264,205 @@ export const formatMessagesForModel = (
   return formattedPrompt;
 };
 
+// Document processing
+export type ProcessedDocument = {
+  title: string;
+  content: string;
+  type: DocumentType;
+  metadata?: Record<string, any>;
+};
+
+export const processDocumentFile = async (
+  file: File, 
+  onProgress?: (progress: number) => void
+): Promise<ProcessedDocument> => {
+  const filename = file.name;
+  const fileExt = filename.split('.').pop()?.toLowerCase() || '';
+  
+  // Determine document type based on extension
+  let docType: DocumentType = 'text';
+  let content = '';
+  let metadata: Record<string, any> = {};
+  
+  try {
+    // Process file based on type
+    if (fileExt === 'pdf') {
+      docType = 'pdf';
+      content = await extractTextFromPdf(file, onProgress);
+      metadata.pageCount = metadata.pageCount || 1;
+    } 
+    else if (fileExt === 'csv') {
+      docType = 'csv';
+      content = await extractTextFromCsv(file);
+    }
+    else if (fileExt === 'xlsx' || fileExt === 'xls') {
+      docType = 'excel';
+      content = await extractTextFromExcel(file);
+    }
+    else if (fileExt === 'md') {
+      docType = 'markdown';
+      content = await readTextFile(file);
+    }
+    else if (fileExt === 'json') {
+      docType = 'json';
+      content = await readTextFile(file);
+      try {
+        // Validate JSON and format it nicely
+        const jsonObj = JSON.parse(content);
+        content = JSON.stringify(jsonObj, null, 2);
+      } catch (e) {
+        // If JSON parsing fails, just use the raw content
+      }
+    }
+    else if (['html', 'htm'].includes(fileExt)) {
+      docType = 'html';
+      content = await readTextFile(file);
+    }
+    else if (['js', 'ts', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rb', 'php'].includes(fileExt)) {
+      docType = 'code';
+      content = await readTextFile(file);
+    }
+    else {
+      // Default to text for other types
+      content = await readTextFile(file);
+    }
+    
+    // Generate title from filename (remove extension)
+    const title = filename.replace(/\.[^/.]+$/, "");
+    
+    return {
+      title,
+      content,
+      type: docType,
+      metadata
+    };
+  } catch (error) {
+    console.error('Error processing document:', error);
+    throw new Error(`Failed to process ${filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+// Helper function to read text files
+const readTextFile = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+};
+
+// Helper function to extract text from PDF
+const extractTextFromPdf = async (
+  file: File, 
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  try {
+    // Load the PDF file
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument(new Uint8Array(arrayBuffer)).promise;
+    
+    const numPages = pdf.numPages;
+    let extractedText = '';
+    
+    // Extract text from each page
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      extractedText += `[Page ${i}]\n${pageText}\n\n`;
+      
+      if (onProgress) {
+        onProgress(i / numPages);
+      }
+    }
+    
+    return extractedText.trim();
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    throw new Error('Failed to extract text from PDF');
+  }
+};
+
+// Helper function to extract text from CSV
+const extractTextFromCsv = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      complete: (results) => {
+        if (results.errors && results.errors.length > 0) {
+          reject(new Error(`CSV parsing error: ${results.errors[0].message}`));
+          return;
+        }
+        
+        // Convert CSV data to a readable text format
+        let content = '';
+        
+        // Add headers as first line if present
+        if (results.data && results.data.length > 0) {
+          content += results.data[0].join(' | ') + '\n';
+          content += '-'.repeat(60) + '\n';
+          
+          // Add data rows
+          for (let i = 1; i < results.data.length; i++) {
+            content += results.data[i].join(' | ') + '\n';
+          }
+        }
+        
+        resolve(content);
+      },
+      error: (error) => {
+        reject(error);
+      }
+    });
+  });
+};
+
+// Helper function to extract text from Excel
+const extractTextFromExcel = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        let result = '';
+        
+        // Process each sheet
+        workbook.SheetNames.forEach((sheetName) => {
+          const worksheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          // Add sheet name
+          result += `[Sheet: ${sheetName}]\n`;
+          
+          // Convert to readable text
+          json.forEach((row: any) => {
+            if (row && row.length) {
+              result += row.join(' | ') + '\n';
+            }
+          });
+          
+          result += '\n';
+        });
+        
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Error reading Excel file'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+};
+
 // Document processing and embedding
 export const detectDocumentType = (filename: string, content: string): DocumentType => {
   const ext = filename.split('.').pop()?.toLowerCase();
@@ -264,6 +470,9 @@ export const detectDocumentType = (filename: string, content: string): DocumentT
   if (ext === 'md') return 'markdown';
   if (ext === 'json') return 'json';
   if (ext === 'pdf') return 'pdf';
+  if (ext === 'csv') return 'csv';
+  if (ext === 'xlsx' || ext === 'xls') return 'excel';
+  if (ext === 'html' || ext === 'htm') return 'html';
   
   // Check for code snippets
   if (content.includes('function ') || 
