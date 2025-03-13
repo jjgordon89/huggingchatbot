@@ -9,7 +9,7 @@ import { BraveApiKeyForm } from '@/components/BraveApiKeyForm';
 import { isBraveApiKeySet } from '@/lib/webSearchService';
 
 const Index = () => {
-  const { isApiKeySet, webSearchEnabled } = useChat();
+  const { isApiKeySet, webSearchEnabled, activeThreadId } = useChat();
 
   // Check if web search is enabled but no Brave API key is set
   const needsBraveApiKey = webSearchEnabled && !isBraveApiKeySet();

@@ -3,12 +3,19 @@ import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { SendHorizontal, Search } from 'lucide-react';
+import { SendHorizontal, Search, MessageCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { isBraveApiKeySet } from '@/lib/webSearchService';
 
 export function ChatInput() {
-  const { sendMessage, isLoading, isApiKeySet, ragEnabled, webSearchEnabled } = useChat();
+  const { 
+    sendMessage, 
+    isLoading, 
+    isApiKeySet, 
+    ragEnabled, 
+    webSearchEnabled,
+    activeThreadId 
+  } = useChat();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isBraveKeySet = isBraveApiKeySet();
@@ -18,7 +25,7 @@ export function ChatInput() {
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
-  }, []);
+  }, [activeThreadId]); // Refocus when changing threads
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,27 +49,31 @@ export function ChatInput() {
   return (
     <div className="p-4 border-t bg-background">
       <div className="max-w-3xl mx-auto">
-        {(ragEnabled || isWebSearchReady || isWebSearchPending) && (
-          <div className="flex items-center gap-2 mb-2 justify-center flex-wrap">
-            {ragEnabled && (
-              <Badge variant="outline" className="bg-primary/10">
-                RAG Enabled
-              </Badge>
-            )}
-            {isWebSearchReady && (
-              <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
-                <Search className="h-3 w-3" />
-                <span>Web Search</span>
-              </Badge>
-            )}
-            {isWebSearchPending && (
-              <Badge variant="outline" className="bg-destructive/10 flex items-center gap-1">
-                <Search className="h-3 w-3" />
-                <span>Web Search (API Key Required)</span>
-              </Badge>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 mb-2 justify-center flex-wrap">
+          {activeThreadId && (
+            <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
+              <MessageCircle className="h-3 w-3" />
+              <span>Thread Reply</span>
+            </Badge>
+          )}
+          {ragEnabled && (
+            <Badge variant="outline" className="bg-primary/10">
+              RAG Enabled
+            </Badge>
+          )}
+          {isWebSearchReady && (
+            <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
+              <Search className="h-3 w-3" />
+              <span>Web Search</span>
+            </Badge>
+          )}
+          {isWebSearchPending && (
+            <Badge variant="outline" className="bg-destructive/10 flex items-center gap-1">
+              <Search className="h-3 w-3" />
+              <span>Web Search (API Key Required)</span>
+            </Badge>
+          )}
+        </div>
         
         <form onSubmit={handleSubmit} className="relative">
           <Textarea
@@ -75,6 +86,8 @@ export function ChatInput() {
                 ? "Please set your Hugging Face API key in settings"
                 : isLoading
                 ? "Waiting for response..."
+                : activeThreadId
+                ? "Reply to thread..."
                 : isWebSearchReady 
                 ? "Ask anything (web search enabled)..."
                 : isWebSearchPending
@@ -101,6 +114,8 @@ export function ChatInput() {
             "Click the settings icon to add your Hugging Face API key"
           ) : isWebSearchPending ? (
             "Web search is enabled but requires a Brave Search API key"
+          ) : activeThreadId ? (
+            "Replying in thread - Press Enter to send"
           ) : (
             "Press Enter to send, Shift+Enter for a new line"
           )}

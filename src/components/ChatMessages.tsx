@@ -2,12 +2,20 @@
 import React, { useRef, useEffect } from 'react';
 import { useChat } from '@/context/ChatContext';
 import ReactMarkdown from 'react-markdown';
-import { User, Bot } from 'lucide-react';
+import { User, Bot, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RagSources } from './RagSources';
+import { ThreadIndicator } from './ThreadIndicator';
 
 export function ChatMessages() {
-  const { messages, isLoading } = useChat();
+  const { 
+    messages, 
+    isLoading, 
+    startThread, 
+    exitThread, 
+    activeThreadId, 
+    sendMessage 
+  } = useChat();
   const endRef = useRef<HTMLDivElement>(null);
   
   // Scroll to bottom on new messages
@@ -17,32 +25,34 @@ export function ChatMessages() {
     }
   }, [messages]);
   
-  // Find messages with RAG context
+  // Find messages with RAG context and their threading status
   const messagesWithContext = messages.map((message, index) => {
-    const nextMessage = messages[index + 1];
-    const hasRagContext = nextMessage?.role === 'assistant' && 
-                          message.role === 'user' && 
-                          nextMessage.content.includes('sources:');
-    
-    let sources: string[] = [];
-    
-    // Check for sources in the assistant message
-    if (nextMessage?.role === 'assistant') {
-      const sourcesMatch = nextMessage.content.match(/Sources:\s*\[(.*?)\]/);
-      if (sourcesMatch) {
-        sources = sourcesMatch[1].split(',').map(s => s.trim());
-      }
-    }
+    // If we're in a thread view and this is the parent message
+    const isParentMessage = activeThreadId === message.id;
     
     return {
       ...message,
-      sources
+      isParentMessage
     };
   });
   
   return (
     <div className="p-4 overflow-y-auto flex-1 pb-32">
       <div className="max-w-3xl mx-auto space-y-6">
+        {activeThreadId && (
+          <div className="flex items-center justify-between mb-4 pb-2 border-b">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              <span>Thread</span>
+            </h3>
+            <ThreadIndicator
+              hasThread={false}
+              isParentMessage={true}
+              onClick={exitThread}
+            />
+          </div>
+        )}
+        
         {messages.length === 0 ? (
           <div className="text-center py-10">
             <h2 className="text-2xl font-bold">Welcome to AI Chat</h2>
@@ -57,7 +67,7 @@ export function ChatMessages() {
             </div>
           </div>
         ) : (
-          messagesWithContext.map((message, index) => {
+          messagesWithContext.map((message) => {
             if (message.role === 'system') return null;
             
             return (
@@ -65,7 +75,8 @@ export function ChatMessages() {
                 key={message.id}
                 className={cn(
                   "flex items-start gap-4 rounded-lg",
-                  message.role === 'assistant' ? 'bg-card/50 p-4' : ''
+                  message.role === 'assistant' ? 'bg-card/50 p-4' : '',
+                  message.isParentMessage ? 'border-l-2 border-primary pl-4' : ''
                 )}
               >
                 {message.role === 'assistant' ? (
@@ -90,6 +101,15 @@ export function ChatMessages() {
                   
                   {message.sources && message.sources.length > 0 && (
                     <RagSources sources={message.sources} />
+                  )}
+                  
+                  {!activeThreadId && message.role === 'user' && (
+                    <div className="mt-2">
+                      <ThreadIndicator
+                        hasThread={!!message.hasThread}
+                        onClick={() => startThread(message.id)}
+                      />
+                    </div>
                   )}
                 </div>
               </div>

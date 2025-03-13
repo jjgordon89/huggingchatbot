@@ -15,12 +15,20 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { searchWeb, formatSearchResultsAsContext } from '@/lib/webSearchService';
 
+// Extend the Message type to support threading
+type ThreadedMessage = Message & {
+  threadId?: string; // ID of the thread this message belongs to
+  parentId?: string; // ID of the parent message in a thread
+  hasThread?: boolean; // Whether this message has a thread
+};
+
 // Define the context type
 type ChatContextType = {
-  messages: Message[];
+  messages: ThreadedMessage[];
   isLoading: boolean;
   activeChatId: string | null;
-  chats: { id: string; title: string; messages: Message[] }[];
+  activeThreadId: string | null;
+  chats: { id: string; title: string; messages: ThreadedMessage[] }[];
   activeModel: HuggingFaceModel;
   availableModels: HuggingFaceModel[];
   isApiKeySet: boolean;
@@ -28,7 +36,9 @@ type ChatContextType = {
   webSearchEnabled: boolean;
   setRagEnabled: (enabled: boolean) => void;
   setWebSearchEnabled: (enabled: boolean) => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, parentId?: string) => Promise<void>;
+  startThread: (messageId: string) => void;
+  exitThread: () => void;
   startNewChat: () => void;
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
@@ -42,8 +52,9 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 // Create a provider component
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [chats, setChats] = useState<{ id: string; title: string; messages: Message[] }[]>([]);
+  const [chats, setChats] = useState<{ id: string; title: string; messages: ThreadedMessage[] }[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeModel, setActiveModel] = useState<HuggingFaceModel>(AVAILABLE_MODELS[0]);
   const [isApiKeySet, setIsApiKeySet] = useState<boolean>(!!getApiKey());
@@ -56,6 +67,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const savedChats = localStorage.getItem('chats');
     const savedActiveChatId = localStorage.getItem('activeChatId');
+    const savedActiveThreadId = localStorage.getItem('activeThreadId');
     const savedActiveModelId = localStorage.getItem('activeModelId');
     const savedRagEnabled = localStorage.getItem('ragEnabled');
     const savedWebSearchEnabled = localStorage.getItem('webSearchEnabled');
@@ -70,6 +82,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (savedActiveChatId) {
       setActiveChatId(savedActiveChatId);
+    }
+    
+    if (savedActiveThreadId) {
+      setActiveThreadId(savedActiveThreadId);
     }
     
     if (savedActiveModelId) {
@@ -96,19 +112,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('activeChatId', activeChatId);
     }
     
+    if (activeThreadId) {
+      localStorage.setItem('activeThreadId', activeThreadId);
+    } else {
+      localStorage.removeItem('activeThreadId');
+    }
+    
     localStorage.setItem('activeModelId', activeModel.id);
     localStorage.setItem('ragEnabled', ragEnabled.toString());
     localStorage.setItem('webSearchEnabled', webSearchEnabled.toString());
-  }, [chats, activeChatId, activeModel.id, ragEnabled, webSearchEnabled]);
+  }, [chats, activeChatId, activeThreadId, activeModel.id, ragEnabled, webSearchEnabled]);
 
   // Get the active chat's messages
   const messages = activeChatId 
-    ? chats.find(chat => chat.id === activeChatId)?.messages || []
+    ? chats.find(chat => chat.id === activeChatId)?.messages.filter(msg => {
+        if (activeThreadId) {
+          // When viewing a thread, show only messages in this thread
+          return msg.threadId === activeThreadId || msg.id === activeThreadId;
+        } else {
+          // In main view, show only messages without a thread ID (main conversation)
+          return !msg.threadId;
+        }
+      }) || []
     : [];
 
   // Start a new chat
   const startNewChat = useCallback(() => {
-    const systemMessage: Message = {
+    const systemMessage: ThreadedMessage = {
       id: uuidv4(),
       role: 'system',
       content: 'You are a helpful, friendly, and knowledgeable AI assistant. Answer questions accurately and helpfully.',
@@ -124,6 +154,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setChats(prev => [...prev, newChat]);
     setActiveChatId(newChatId);
+    setActiveThreadId(null);
+  }, []);
+
+  // Start a thread from a message
+  const startThread = useCallback((messageId: string) => {
+    setActiveThreadId(messageId);
+    
+    // Mark the parent message as having a thread
+    setChats(prev => {
+      return prev.map(chat => {
+        if (chat.id === activeChatId) {
+          const updatedMessages = chat.messages.map(msg => {
+            if (msg.id === messageId) {
+              return { ...msg, hasThread: true };
+            }
+            return msg;
+          });
+          return { ...chat, messages: updatedMessages };
+        }
+        return chat;
+      });
+    });
+  }, [activeChatId]);
+
+  // Exit the current thread
+  const exitThread = useCallback(() => {
+    setActiveThreadId(null);
   }, []);
 
   // If no chats exist, start a new one
@@ -133,12 +190,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else if (activeChatId && !chats.find(chat => chat.id === activeChatId)) {
       // If active chat doesn't exist anymore, set to first available or null
       setActiveChatId(chats.length > 0 ? chats[0].id : null);
+      setActiveThreadId(null);
     }
   }, [chats, activeChatId, startNewChat, isApiKeySet]);
 
   // Switch to a different chat
   const switchChat = useCallback((chatId: string) => {
     setActiveChatId(chatId);
+    setActiveThreadId(null);
   }, []);
 
   // Delete a chat
@@ -151,6 +210,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const remainingChats = chats.filter(chat => chat.id !== chatId);
         return remainingChats.length > 0 ? remainingChats[0].id : null;
       });
+      setActiveThreadId(null);
     }
   }, [activeChatId, chats]);
 
@@ -158,6 +218,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearChats = useCallback(() => {
     setChats([]);
     setActiveChatId(null);
+    setActiveThreadId(null);
   }, []);
 
   // Set the API key
@@ -183,16 +244,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Send a message
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, parentId?: string) => {
     if (!activeChatId) return;
     
     try {
       // Create user message
-      const userMessage: Message = {
+      const userMessage: ThreadedMessage = {
         id: uuidv4(),
         role: 'user',
         content,
-        timestamp: new Date()
+        timestamp: new Date(),
+        threadId: parentId ? activeThreadId : undefined,
+        parentId: parentId || undefined
       };
       
       // Add user message to chat
@@ -205,8 +268,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               messages: [...chat.messages, userMessage]
             };
             
-            if (chat.title === 'New Chat' && chat.messages.length === 1) {
-              // If first user message, use it as title
+            if (chat.title === 'New Chat' && !activeThreadId && chat.messages.length === 1) {
+              // If first user message in main chat, use it as title
               updatedChat.title = content.length > 30 
                 ? content.substring(0, 30) + '...' 
                 : content;
@@ -302,7 +365,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentChat = chats.find(chat => chat.id === activeChatId);
       if (!currentChat) throw new Error('Chat not found');
       
-      const updatedMessages = [...currentChat.messages, userMessage];
+      // Filter messages to get relevant context for the thread
+      const contextMessages = currentChat.messages.filter(msg => {
+        if (activeThreadId) {
+          return msg.threadId === activeThreadId || msg.id === activeThreadId;
+        }
+        return !msg.threadId;
+      });
+      
+      const updatedMessages = [...contextMessages, userMessage];
       
       // Query the model
       const assistantContent = await queryModel(
@@ -312,12 +383,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       
       // Create assistant message
-      const assistantMessage: Message = {
+      const assistantMessage: ThreadedMessage = {
         id: uuidv4(),
         role: 'assistant',
         content: assistantContent,
         timestamp: new Date(),
-        sources: sources.length > 0 ? sources : undefined
+        sources: sources.length > 0 ? sources : undefined,
+        threadId: userMessage.threadId,
+        parentId: userMessage.id
       };
       
       // Add assistant message to chat
@@ -326,7 +399,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (chat.id === activeChatId) {
             return {
               ...chat,
-              messages: [...chat.messages, userMessage, {
+              messages: [...chat.messages, {
                 ...assistantMessage,
                 sources
               }]
@@ -358,12 +431,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled]);
+  }, [activeChatId, activeThreadId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled]);
 
   const value = {
     messages,
     isLoading,
     activeChatId,
+    activeThreadId,
     chats,
     activeModel,
     availableModels: AVAILABLE_MODELS,
@@ -373,6 +447,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRagEnabled,
     setWebSearchEnabled,
     sendMessage,
+    startThread,
+    exitThread,
     startNewChat,
     switchChat,
     deleteChat,
