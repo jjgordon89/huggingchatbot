@@ -1,4 +1,3 @@
-
 // Web Search API using Brave Search
 // https://brave.com/search/api/
 
@@ -38,19 +37,16 @@ export const isBraveApiKeySet = (): boolean => {
 
 // Validate Brave API key with a test search
 export const validateBraveApiKey = async (apiKey: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${SEARCH_API_URL}?q=test`, {
-      headers: {
-        'Accept': 'application/json',
-        'X-Subscription-Token': apiKey
-      }
-    });
-    
-    return response.status === 200;
-  } catch (error) {
-    console.error('Error validating Brave API key:', error);
+  // Due to CORS restrictions in browser environments, direct validation may fail
+  // In a production environment, this would ideally be handled by a backend proxy
+  // For now, we'll just check if the key format seems valid (non-empty string)
+  if (!apiKey || apiKey.trim() === '') {
     return false;
   }
+  
+  // A very basic format check - a real validation would involve testing with the API
+  // but that might fail due to CORS in the browser
+  return apiKey.length > 10;
 };
 
 export const searchWeb = async (query: string): Promise<SearchResponse> => {

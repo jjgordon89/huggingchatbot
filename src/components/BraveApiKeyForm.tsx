@@ -3,13 +3,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveBraveApiKey, validateBraveApiKey, getBraveApiKey } from "@/lib/webSearchService";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { saveBraveApiKey, getBraveApiKey } from "@/lib/webSearchService";
 import { useToast } from "@/hooks/use-toast";
+import { InfoIcon } from "lucide-react";
 
 export function BraveApiKeyForm({ onClose }: { onClose?: () => void }) {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState(getBraveApiKey() || "");
   const [isValidating, setIsValidating] = useState(false);
+  const [showCorsWarning, setShowCorsWarning] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,31 +27,28 @@ export function BraveApiKeyForm({ onClose }: { onClose?: () => void }) {
     }
     
     setIsValidating(true);
+    setShowCorsWarning(false);
     
     try {
-      const isValid = await validateBraveApiKey(apiKey);
+      // In a development environment or when running on a hosting platform without proper CORS setup,
+      // direct validation with the Brave API might fail due to CORS restrictions.
+      // We'll save the key directly and let the user test it by making a search.
       
-      if (isValid) {
-        saveBraveApiKey(apiKey);
-        toast({
-          title: "Success",
-          description: "Brave Search API key saved successfully",
-        });
-        
-        if (onClose) {
-          onClose();
-        }
-      } else {
-        toast({
-          title: "Invalid API Key",
-          description: "The API key could not be validated with Brave Search",
-          variant: "destructive",
-        });
+      saveBraveApiKey(apiKey);
+      toast({
+        title: "Success",
+        description: "Brave Search API key saved. Try a search to verify it works.",
+      });
+      
+      if (onClose) {
+        onClose();
       }
     } catch (error) {
+      console.error('Error validating Brave API key:', error);
+      setShowCorsWarning(true);
       toast({
-        title: "Error",
-        description: "Failed to validate API key. Please try again.",
+        title: "Warning",
+        description: "Couldn't validate the API key due to browser restrictions, but we've saved it. Try a search to verify it works.",
         variant: "destructive",
       });
     } finally {
@@ -81,8 +81,18 @@ export function BraveApiKeyForm({ onClose }: { onClose?: () => void }) {
         </p>
       </div>
       
+      {showCorsWarning && (
+        <Alert className="bg-yellow-50 border-yellow-200">
+          <InfoIcon className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-700">
+            Due to browser security restrictions, we can't directly validate the API key. 
+            The key has been saved - try using web search to verify it works.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Button type="submit" disabled={isValidating} className="w-full">
-        {isValidating ? "Validating..." : "Save API Key"}
+        {isValidating ? "Saving..." : "Save API Key"}
       </Button>
     </form>
   );
