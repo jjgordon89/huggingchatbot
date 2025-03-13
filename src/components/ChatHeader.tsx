@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -29,7 +28,7 @@ import { ApiKeyForm } from "./ApiKeyForm";
 import { PlusCircle, Settings, Database, FileUp, Sparkles, Search } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/context/ChatContext";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function ChatHeader() {
   const { 
@@ -44,7 +43,7 @@ export function ChatHeader() {
     setWebSearchEnabled
   } = useChat();
   const [apiDialogOpen, setApiDialogOpen] = useState(false);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   
   return (
     <header className="border-b h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -105,7 +104,7 @@ export function ChatHeader() {
                     Enter your Hugging Face API key to access AI models
                   </DialogDescription>
                 </DialogHeader>
-                <ApiKeyForm onSuccess={() => setApiDialogOpen(false)} />
+                <ApiKeyForm />
               </DialogContent>
             </Dialog>
             
