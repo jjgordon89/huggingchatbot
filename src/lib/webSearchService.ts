@@ -1,6 +1,6 @@
 
-// Web Search API using SerpAPI
-// This is a simple implementation using fetch
+// Web Search API using Brave Search
+// https://brave.com/search/api/
 
 type SearchResult = {
   title: string;
@@ -15,25 +15,102 @@ type SearchResponse = {
   error?: string;
 };
 
-// Using a free API for demonstration
-// In production, you would use a paid API with better results
-const SEARCH_API_URL = 'https://serpapi.com/search';
+// Brave Search API endpoints
+const SEARCH_API_URL = 'https://api.search.brave.com/res/v1/web/search';
 
-// We'll use a mock implementation for demo purposes
-// In a real app, you'd use your own API key
+// API key storage key for localStorage
+const BRAVE_API_KEY_STORAGE_KEY = 'brave_search_api_key';
+
+// Save API key to localStorage
+export const saveBraveApiKey = (apiKey: string): void => {
+  localStorage.setItem(BRAVE_API_KEY_STORAGE_KEY, apiKey);
+};
+
+// Get API key from localStorage
+export const getBraveApiKey = (): string | null => {
+  return localStorage.getItem(BRAVE_API_KEY_STORAGE_KEY);
+};
+
+// Check if Brave API key is set
+export const isBraveApiKeySet = (): boolean => {
+  return !!getBraveApiKey();
+};
+
+// Validate Brave API key with a test search
+export const validateBraveApiKey = async (apiKey: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${SEARCH_API_URL}?q=test`, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Subscription-Token': apiKey
+      }
+    });
+    
+    return response.status === 200;
+  } catch (error) {
+    console.error('Error validating Brave API key:', error);
+    return false;
+  }
+};
+
 export const searchWeb = async (query: string): Promise<SearchResponse> => {
   console.log('Searching the web for:', query);
   
+  const apiKey = getBraveApiKey();
+  
+  if (!apiKey) {
+    console.error('Brave Search API key not found');
+    return { 
+      results: [],
+      error: 'Brave Search API key not set. Please configure it in settings.'
+    };
+  }
+  
   try {
-    // In a real implementation, you would make an actual API call:
-    // const response = await fetch(`${SEARCH_API_URL}?q=${encodeURIComponent(query)}&api_key=${YOUR_API_KEY}`);
-    // const data = await response.json();
+    const response = await fetch(`${SEARCH_API_URL}?q=${encodeURIComponent(query)}`, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Subscription-Token': apiKey
+      }
+    });
     
-    // For demo purposes, we'll return mock data after a short delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!response.ok) {
+      throw new Error(`Search API returned ${response.status}: ${response.statusText}`);
+    }
     
-    // Generate some fake search results based on the query
-    const results: SearchResult[] = [
+    const data = await response.json();
+    
+    // Transform Brave Search results to our format
+    const results: SearchResult[] = data.web?.results?.map((result: any, index: number) => ({
+      title: result.title || '',
+      link: result.url || '',
+      snippet: result.description || '',
+      source: new URL(result.url).hostname,
+      position: index + 1
+    })) || [];
+    
+    return { results };
+  } catch (error) {
+    console.error('Error searching the web:', error);
+    
+    // Fallback to mock results if in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Using mock search results in development mode');
+      return getMockSearchResults(query);
+    }
+    
+    return { 
+      results: [],
+      error: error instanceof Error ? error.message : 'Failed to search the web'
+    };
+  }
+};
+
+// Mock search results for development/testing
+const getMockSearchResults = (query: string): SearchResponse => {
+  // Simulate network delay
+  return {
+    results: [
       {
         title: `Latest information about ${query}`,
         link: `https://example.com/results/${encodeURIComponent(query)}`,
@@ -55,16 +132,8 @@ export const searchWeb = async (query: string): Promise<SearchResponse> => {
         source: 'news.example.com',
         position: 3
       }
-    ];
-    
-    return { results };
-  } catch (error) {
-    console.error('Error searching the web:', error);
-    return { 
-      results: [],
-      error: error instanceof Error ? error.message : 'Failed to search the web'
-    };
-  }
+    ]
+  };
 };
 
 // Format search results as context for the AI

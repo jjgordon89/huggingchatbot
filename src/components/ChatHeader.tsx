@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -25,10 +26,12 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiKeyForm } from "./ApiKeyForm";
+import { BraveApiKeyForm } from "./BraveApiKeyForm";
 import { PlusCircle, Settings, Database, FileUp, Sparkles, Search } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/context/ChatContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isBraveApiKeySet } from "@/lib/webSearchService";
 
 export function ChatHeader() {
   const { 
@@ -43,7 +46,9 @@ export function ChatHeader() {
     setWebSearchEnabled
   } = useChat();
   const [apiDialogOpen, setApiDialogOpen] = useState(false);
+  const [braveApiDialogOpen, setBraveApiDialogOpen] = useState(false);
   const isMobile = useIsMobile();
+  const isBraveKeySet = isBraveApiKeySet();
   
   return (
     <header className="border-b h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -94,7 +99,7 @@ export function ChatHeader() {
             <Dialog open={apiDialogOpen} onOpenChange={setApiDialogOpen}>
               <DialogTrigger asChild>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  API Key
+                  Hugging Face API Key
                 </DropdownMenuItem>
               </DialogTrigger>
               <DialogContent>
@@ -105,6 +110,23 @@ export function ChatHeader() {
                   </DialogDescription>
                 </DialogHeader>
                 <ApiKeyForm />
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={braveApiDialogOpen} onOpenChange={setBraveApiDialogOpen}>
+              <DialogTrigger asChild>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  Brave Search API Key
+                </DropdownMenuItem>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Brave Search API Key</DialogTitle>
+                  <DialogDescription>
+                    Enter your Brave Search API key to enable web search functionality
+                  </DialogDescription>
+                </DialogHeader>
+                <BraveApiKeyForm onClose={() => setBraveApiDialogOpen(false)} />
               </DialogContent>
             </Dialog>
             
@@ -148,6 +170,10 @@ export function ChatHeader() {
             <DropdownMenuItem
               onSelect={(e) => {
                 e.preventDefault();
+                if (!isBraveKeySet && !webSearchEnabled) {
+                  setBraveApiDialogOpen(true);
+                  return;
+                }
                 setWebSearchEnabled(!webSearchEnabled);
               }}
               className="flex items-center justify-between"
@@ -158,8 +184,15 @@ export function ChatHeader() {
               </div>
               <Switch 
                 checked={webSearchEnabled} 
-                onCheckedChange={setWebSearchEnabled} 
+                onCheckedChange={(checked) => {
+                  if (!isBraveKeySet && checked) {
+                    setBraveApiDialogOpen(true);
+                    return;
+                  }
+                  setWebSearchEnabled(checked);
+                }} 
                 onClick={(e) => e.stopPropagation()}
+                disabled={!isBraveKeySet && !webSearchEnabled}
               />
             </DropdownMenuItem>
           </DropdownMenuContent>

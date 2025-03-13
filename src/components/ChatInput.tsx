@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SendHorizontal, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { isBraveApiKeySet } from '@/lib/webSearchService';
 
 export function ChatInput() {
   const { sendMessage, isLoading, isApiKeySet, ragEnabled, webSearchEnabled } = useChat();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isBraveKeySet = isBraveApiKeySet();
 
   useEffect(() => {
     // Auto focus the textarea on component mount
@@ -34,20 +36,29 @@ export function ChatInput() {
     }
   };
 
+  const isWebSearchReady = webSearchEnabled && isBraveKeySet;
+  const isWebSearchPending = webSearchEnabled && !isBraveKeySet;
+
   return (
     <div className="p-4 border-t bg-background">
       <div className="max-w-3xl mx-auto">
-        {(ragEnabled || webSearchEnabled) && (
-          <div className="flex items-center gap-2 mb-2 justify-center">
+        {(ragEnabled || isWebSearchReady || isWebSearchPending) && (
+          <div className="flex items-center gap-2 mb-2 justify-center flex-wrap">
             {ragEnabled && (
               <Badge variant="outline" className="bg-primary/10">
                 RAG Enabled
               </Badge>
             )}
-            {webSearchEnabled && (
+            {isWebSearchReady && (
               <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
                 <Search className="h-3 w-3" />
                 <span>Web Search</span>
+              </Badge>
+            )}
+            {isWebSearchPending && (
+              <Badge variant="outline" className="bg-destructive/10 flex items-center gap-1">
+                <Search className="h-3 w-3" />
+                <span>Web Search (API Key Required)</span>
               </Badge>
             )}
           </div>
@@ -64,8 +75,10 @@ export function ChatInput() {
                 ? "Please set your Hugging Face API key in settings"
                 : isLoading
                 ? "Waiting for response..."
-                : webSearchEnabled 
+                : isWebSearchReady 
                 ? "Ask anything (web search enabled)..."
+                : isWebSearchPending
+                ? "Set your Brave Search API key in settings"
                 : "Type a message..."
             }
             disabled={isLoading || !isApiKeySet}
@@ -86,6 +99,8 @@ export function ChatInput() {
         <p className="text-xs text-center text-muted-foreground mt-2">
           {!isApiKeySet ? (
             "Click the settings icon to add your Hugging Face API key"
+          ) : isWebSearchPending ? (
+            "Web search is enabled but requires a Brave Search API key"
           ) : (
             "Press Enter to send, Shift+Enter for a new line"
           )}
