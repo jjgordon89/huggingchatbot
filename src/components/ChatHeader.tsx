@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -23,11 +22,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ApiKeyForm } from "./ApiKeyForm";
 import { BraveApiKeyForm } from "./BraveApiKeyForm";
-import { PlusCircle, Settings, Database, FileUp, Sparkles, Search } from "lucide-react";
+import { PlusCircle, Settings, Database, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/context/ChatContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -54,7 +51,7 @@ export function ChatHeader() {
     <header className="border-b h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5" />
-        <h1 className="text-lg font-semibold">AI Chat</h1>
+        <h1 className="text-lg font-semibold">Alfred</h1>
       </div>
       
       <div className="flex items-center gap-2">
