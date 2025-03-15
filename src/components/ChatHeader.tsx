@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -24,7 +25,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { ApiKeyForm } from "./ApiKeyForm";
 import { BraveApiKeyForm } from "./BraveApiKeyForm";
-import { PlusCircle, Settings, Database, Search, Sparkles } from "lucide-react";
+import { AdvancedRagSettings } from "./AdvancedRagSettings";
+import { PlusCircle, Settings, Database, Search, Sparkles, BookOpen, Sliders } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/context/ChatContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -44,6 +46,7 @@ export function ChatHeader() {
   } = useChat();
   const [apiDialogOpen, setApiDialogOpen] = useState(false);
   const [braveApiDialogOpen, setBraveApiDialogOpen] = useState(false);
+  const [advancedRagDialogOpen, setAdvancedRagDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const isBraveKeySet = isBraveApiKeySet();
   
@@ -70,6 +73,36 @@ export function ChatHeader() {
             <TooltipContent>New Chat</TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        
+        {(ragEnabled || webSearchEnabled) && (
+          <Dialog open={advancedRagDialogOpen} onOpenChange={setAdvancedRagDialogOpen}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      aria-label="Knowledge Settings"
+                    >
+                      <Sliders className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Knowledge Settings</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Advanced Knowledge Settings</DialogTitle>
+                <DialogDescription>
+                  Configure how Alfred uses documents and web search to enhance responses.
+                </DialogDescription>
+              </DialogHeader>
+              <AdvancedRagSettings />
+            </DialogContent>
+          </Dialog>
+        )}
         
         <DropdownMenu>
           <TooltipProvider>
@@ -192,6 +225,20 @@ export function ChatHeader() {
                 disabled={!isBraveKeySet && !webSearchEnabled}
               />
             </DropdownMenuItem>
+            
+            {(ragEnabled || webSearchEnabled) && (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setAdvancedRagDialogOpen(true);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Sliders className="h-4 w-4" />
+                  <span>Advanced Knowledge Settings</span>
+                </div>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

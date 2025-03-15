@@ -22,6 +22,16 @@ type ThreadedMessage = Message & {
   hasThread?: boolean; // Whether this message has a thread
 };
 
+// Define RAG settings type
+export type RagSettings = {
+  topK: number;
+  similarityThreshold: number;
+  enhancedContext: boolean;
+  searchResultsCount: number;
+  searchTimeRange: "day" | "week" | "month" | "year";
+  autoCitation: boolean;
+};
+
 // Define the context type
 type ChatContextType = {
   messages: ThreadedMessage[];
@@ -34,8 +44,10 @@ type ChatContextType = {
   isApiKeySet: boolean;
   ragEnabled: boolean;
   webSearchEnabled: boolean;
+  ragSettings: RagSettings;
   setRagEnabled: (enabled: boolean) => void;
   setWebSearchEnabled: (enabled: boolean) => void;
+  updateRagSettings: (settings: Partial<RagSettings>) => void;
   sendMessage: (content: string, parentId?: string) => Promise<void>;
   startThread: (messageId: string) => void;
   exitThread: () => void;
@@ -45,6 +57,16 @@ type ChatContextType = {
   clearChats: () => void;
   setApiKey: (key: string) => boolean;
   setActiveModel: (model: HuggingFaceModel) => void;
+};
+
+// Default RAG settings
+const DEFAULT_RAG_SETTINGS: RagSettings = {
+  topK: 3,
+  similarityThreshold: 70,
+  enhancedContext: false,
+  searchResultsCount: 3,
+  searchTimeRange: "month",
+  autoCitation: true
 };
 
 // Create the context
@@ -60,6 +82,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isApiKeySet, setIsApiKeySet] = useState<boolean>(!!getApiKey());
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
+  const [ragSettings, setRagSettings] = useState<RagSettings>(DEFAULT_RAG_SETTINGS);
   
   const { toast } = useToast();
 
@@ -71,6 +94,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedActiveModelId = localStorage.getItem('activeModelId');
     const savedRagEnabled = localStorage.getItem('ragEnabled');
     const savedWebSearchEnabled = localStorage.getItem('webSearchEnabled');
+    const savedRagSettings = localStorage.getItem('ragSettings');
     
     if (savedChats) {
       try {
@@ -100,6 +124,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedWebSearchEnabled) {
       setWebSearchEnabled(savedWebSearchEnabled === 'true');
     }
+    
+    if (savedRagSettings) {
+      try {
+        setRagSettings({
+          ...DEFAULT_RAG_SETTINGS,
+          ...JSON.parse(savedRagSettings)
+        });
+      } catch (e) {
+        console.error('Failed to parse saved RAG settings:', e);
+      }
+    }
   }, []);
 
   // Effect to save to localStorage when state changes
@@ -121,7 +156,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('activeModelId', activeModel.id);
     localStorage.setItem('ragEnabled', ragEnabled.toString());
     localStorage.setItem('webSearchEnabled', webSearchEnabled.toString());
-  }, [chats, activeChatId, activeThreadId, activeModel.id, ragEnabled, webSearchEnabled]);
+    localStorage.setItem('ragSettings', JSON.stringify(ragSettings));
+  }, [chats, activeChatId, activeThreadId, activeModel.id, ragEnabled, webSearchEnabled, ragSettings]);
+
+  // Update RAG settings
+  const updateRagSettings = useCallback((settings: Partial<RagSettings>) => {
+    setRagSettings(prev => ({
+      ...prev,
+      ...settings
+    }));
+  }, []);
 
   // Get the active chat's messages
   const messages = activeChatId 
@@ -289,24 +333,53 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (ragEnabled) {
         try {
-          const similarDocs = await searchSimilarDocuments(content);
+          const similarDocs = await searchSimilarDocuments(
+            content, 
+            ragSettings.topK,
+            ragSettings.similarityThreshold / 100 // Convert to decimal
+          );
+          
           if (similarDocs.length > 0) {
             // Get the current embedding model info
             const embeddingModel = getCurrentEmbeddingModel();
             
             // Format the context with document information
+            let formattedDocuments = [];
+            
+            for (const doc of similarDocs) {
+              let docContent = doc.content;
+              
+              // Apply enhanced context formatting if enabled
+              if (ragSettings.enhancedContext) {
+                // Add structured formatting based on document type
+                if (doc.type === 'pdf') {
+                  // Add page markers and structure for PDFs
+                  docContent = docContent.replace(/\[Page (\d+)\]/g, '### Page $1\n');
+                } else if (doc.type === 'markdown') {
+                  // Keep markdown structure
+                  docContent = docContent;
+                } else if (doc.type === 'csv' || doc.type === 'excel') {
+                  // Format tabular data
+                  docContent = `Table data from ${doc.title}:\n${docContent}`;
+                } else if (doc.type === 'code') {
+                  // Format code with appropriate markers
+                  docContent = `\`\`\`\n${docContent}\n\`\`\``;
+                }
+              }
+              
+              // Add document type information to help the AI understand the content
+              let docInfo = `[${doc.type.toUpperCase()}] ${doc.title}\n\n`;
+              formattedDocuments.push(docInfo + docContent);
+              
+              // Create source citation with similarity score
+              sources.push(`${doc.title} (${doc.type}, similarity: ${(doc.similarity * 100).toFixed(1)}%)`);
+            }
+            
             context = {
-              documents: similarDocs.map(doc => {
-                // Add document type information to help the AI understand the content
-                let docInfo = `[${doc.type.toUpperCase()}] ${doc.title}\n\n`;
-                return docInfo + doc.content;
-              }),
-              sources: similarDocs.map(doc => {
-                return `${doc.title} (${doc.type}, similarity: ${(doc.similarity * 100).toFixed(1)}%)`;
-              })
+              documents: formattedDocuments,
+              sources: sources
             };
             
-            sources = context.sources;
             console.log('RAG context:', context);
           }
         } catch (error) {
@@ -319,11 +392,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (webSearchEnabled) {
         try {
           console.log('Performing web search for:', content);
-          const searchResponse = await searchWeb(content);
+          const searchResponse = await searchWeb(content, {
+            count: ragSettings.searchResultsCount,
+            timeRange: ragSettings.searchTimeRange
+          });
           
           if (searchResponse.results.length > 0) {
             // Format search results as context
-            const searchContext = formatSearchResultsAsContext(searchResponse.results);
+            const searchContext = formatSearchResultsAsContext(searchResponse.results, {
+              includeCitations: ragSettings.autoCitation
+            });
             
             // Add search context to existing context
             if (context) {
@@ -431,7 +509,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, activeThreadId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled]);
+  }, [activeChatId, activeThreadId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled, ragSettings]);
 
   const value = {
     messages,
@@ -444,8 +522,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isApiKeySet,
     ragEnabled,
     webSearchEnabled,
+    ragSettings,
     setRagEnabled,
     setWebSearchEnabled,
+    updateRagSettings,
     sendMessage,
     startThread,
     exitThread,

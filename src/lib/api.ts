@@ -539,7 +539,7 @@ export const createEmbeddings = async (texts: string[], modelId?: string): Promi
   }
 };
 
-// Simple cosine similarity for document retrieval
+// Enhanced cosine similarity with options
 export const cosineSimilarity = (a: number[], b: number[]): number => {
   let dotProduct = 0;
   let normA = 0;
@@ -617,9 +617,11 @@ export const deleteDocument = (documentId: string): boolean => {
   return documents.length < initialLength;
 };
 
+// Enhanced searchSimilarDocuments with threshold
 export const searchSimilarDocuments = async (
   query: string, 
-  topK: number = 3
+  topK: number = 3,
+  threshold: number = 0.7
 ): Promise<{id: string, title: string, content: string, type: DocumentType, similarity: number}[]> => {
   try {
     if (documents.length === 0) {
@@ -638,8 +640,9 @@ export const searchSimilarDocuments = async (
       similarity: doc.vector ? cosineSimilarity(queryEmbedding[0], doc.vector) : 0
     }));
     
-    // Sort by similarity and get top K
+    // Sort by similarity and filter by threshold
     const topDocs = similarities
+      .filter(doc => doc.similarity >= threshold)
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, topK);
     

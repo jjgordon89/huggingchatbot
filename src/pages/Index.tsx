@@ -6,10 +6,13 @@ import { ChatMessages } from '@/components/ChatMessages';
 import { ChatInput } from '@/components/ChatInput';
 import { ApiKeyForm } from '@/components/ApiKeyForm';
 import { BraveApiKeyForm } from '@/components/BraveApiKeyForm';
+import { AdvancedRagSettings } from '@/components/AdvancedRagSettings';
 import { isBraveApiKeySet } from '@/lib/webSearchService';
+import { Button } from '@/components/ui/button';
+import { Sliders } from 'lucide-react';
 
 const Index = () => {
-  const { isApiKeySet, webSearchEnabled, activeThreadId } = useChat();
+  const { isApiKeySet, webSearchEnabled, activeThreadId, ragEnabled } = useChat();
 
   // Check if web search is enabled but no Brave API key is set
   const needsBraveApiKey = webSearchEnabled && !isBraveApiKeySet();
@@ -52,6 +55,26 @@ const Index = () => {
           <ChatInput />
         </div>
       </div>
+
+      {/* Helper floating button for mobile to access advanced RAG settings */}
+      {(ragEnabled || webSearchEnabled) && !activeThreadId && (
+        <div className="md:hidden fixed bottom-20 right-4 z-50">
+          <Button 
+            size="icon" 
+            className="h-12 w-12 rounded-full shadow-lg" 
+            onClick={() => {
+              // This button will trigger the advanced RAG settings dialog
+              // Implementation would require adding state in ChatHeader and making it accessible
+              const settingsButton = document.querySelector('button[aria-label="Knowledge Settings"]') as HTMLButtonElement;
+              if (settingsButton) {
+                settingsButton.click();
+              }
+            }}
+          >
+            <Sliders className="h-6 w-6" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
