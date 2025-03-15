@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { ApiKeyForm } from "./ApiKeyForm";
 import { BraveApiKeyForm } from "./BraveApiKeyForm";
 import { AdvancedRagSettings } from "./AdvancedRagSettings";
+import { AgentSkills } from "./AgentSkills";
 import { PlusCircle, Settings, Database, Search, Sparkles, BookOpen, Sliders } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/context/ChatContext";
@@ -47,6 +48,7 @@ export function ChatHeader() {
   const [apiDialogOpen, setApiDialogOpen] = useState(false);
   const [braveApiDialogOpen, setBraveApiDialogOpen] = useState(false);
   const [advancedRagDialogOpen, setAdvancedRagDialogOpen] = useState(false);
+  const [skillsDialogOpen, setSkillsDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const isBraveKeySet = isBraveApiKeySet();
   
@@ -157,6 +159,25 @@ export function ChatHeader() {
                   </DialogDescription>
                 </DialogHeader>
                 <BraveApiKeyForm onClose={() => setBraveApiDialogOpen(false)} />
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={skillsDialogOpen} onOpenChange={setSkillsDialogOpen}>
+              <DialogTrigger asChild>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  Agent Skills
+                </DropdownMenuItem>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Agent Skills</DialogTitle>
+                  <DialogDescription>
+                    Explore capabilities of your AI assistant
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <AgentSkills />
+                </div>
               </DialogContent>
             </Dialog>
             

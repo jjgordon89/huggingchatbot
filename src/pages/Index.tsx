@@ -6,7 +6,6 @@ import { ChatMessages } from '@/components/ChatMessages';
 import { ChatInput } from '@/components/ChatInput';
 import { ApiKeyForm } from '@/components/ApiKeyForm';
 import { BraveApiKeyForm } from '@/components/BraveApiKeyForm';
-import { AgentSkills } from '@/components/AgentSkills';
 import { isBraveApiKeySet } from '@/lib/webSearchService';
 
 const Index = () => {
@@ -22,10 +21,6 @@ const Index = () => {
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md">
             <ApiKeyForm />
-            <div className="mt-8">
-              <h3 className="text-lg font-medium text-center mb-4">Agent Skills</h3>
-              <AgentSkills />
-            </div>
           </div>
         </div>
       </div>
@@ -66,10 +61,6 @@ const Index = () => {
                     <p className="text-gray-600 mb-6">
                       Ask me anything or upload documents for advanced assistance
                     </p>
-                    <div className="mb-8">
-                      <h3 className="text-lg font-medium mb-4">Agent Skills</h3>
-                      <AgentSkills />
-                    </div>
                   </div>
                 </div>
               </div>
