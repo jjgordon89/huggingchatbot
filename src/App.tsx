@@ -8,6 +8,7 @@ import { ChatProvider } from "@/context/ChatContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
+// Create a client for React Query
 const queryClient = new QueryClient();
 
 const App = () => (
