@@ -201,7 +201,7 @@ export function AdvancedRagSettings() {
                           key={period}
                           variant={ragSettings.searchTimeRange === period ? "default" : "outline"}
                           size="sm"
-                          onClick={() => updateRagSettings({ searchTimeRange: period })}
+                          onClick={() => updateRagSettings({ searchTimeRange: period as "day" | "week" | "month" | "year" })}
                           className="text-xs"
                         >
                           Past {period}

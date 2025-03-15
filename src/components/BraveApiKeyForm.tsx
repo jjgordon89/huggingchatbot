@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { saveBraveApiKey, getBraveApiKey } from "@/lib/webSearchService";
+import { setBraveApiKey, getBraveApiKey } from "@/lib/webSearchService";
 import { useToast } from "@/hooks/use-toast";
 import { InfoIcon } from "lucide-react";
 
@@ -34,7 +34,7 @@ export function BraveApiKeyForm({ onClose }: { onClose?: () => void }) {
       // direct validation with the Brave API might fail due to CORS restrictions.
       // We'll save the key directly and let the user test it by making a search.
       
-      saveBraveApiKey(apiKey);
+      setBraveApiKey(apiKey);
       toast({
         title: "Success",
         description: "Brave Search API key saved. Try a search to verify it works.",
