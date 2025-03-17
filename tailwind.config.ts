@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -58,6 +57,14 @@ export default {
 					DEFAULT: 'hsl(220, 60%, 95%)',
 					dark: 'hsl(220, 30%, 20%)',
 					accent: 'hsl(220, 70%, 50%)'
+				},
+				cyber: {
+					primary: '#F97316', // Neon orange
+					secondary: '#ea384c', // Neon red
+					dark: '#222222', // Dark background
+					darker: '#121212', // Darker background
+					accent: '#18FFFF', // Cyan accent
+					glow: 'rgba(249, 115, 22, 0.6)' // Orange glow
 				}
 			},
 			borderRadius: {
@@ -107,12 +114,16 @@ export default {
 			boxShadow: {
 				'subtle': '0 2px 10px rgba(0, 0, 0, 0.05)',
 				'glass': '0 8px 32px rgba(0, 0, 0, 0.1)',
-				'neomorphic': '5px 5px 15px rgba(0, 0, 0, 0.05), -5px -5px 15px rgba(255, 255, 255, 0.6)'
+				'neomorphic': '5px 5px 15px rgba(0, 0, 0, 0.05), -5px -5px 15px rgba(255, 255, 255, 0.6)',
+				'neon-orange': '0 0 5px #F97316, 0 0 10px #F97316',
+				'neon-red': '0 0 5px #ea384c, 0 0 10px #ea384c'
 			},
 			backgroundImage: {
 				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-				'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%)',
-				'shimmer-gradient': 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%)'
+				'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+				'shimmer-gradient': 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%)',
+				'cyber-grid': 'linear-gradient(rgba(34, 34, 34, 0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 34, 34, 0.9) 1px, transparent 1px)',
+				'cyber-glow': 'radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, transparent 70%)'
 			},
 			backdropBlur: {
 				'xs': '2px'

@@ -27,7 +27,7 @@ import { ApiKeyForm } from "./ApiKeyForm";
 import { BraveApiKeyForm } from "./BraveApiKeyForm";
 import { AdvancedRagSettings } from "./AdvancedRagSettings";
 import { AgentSkills } from "./AgentSkills";
-import { PlusCircle, Settings, Database, Search, Sparkles, BookOpen, Sliders } from "lucide-react";
+import { PlusCircle, Settings, Database, Search, Zap, BookOpen, Sliders } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/context/ChatContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -53,10 +53,10 @@ export function ChatHeader() {
   const isBraveKeySet = isBraveApiKeySet();
   
   return (
-    <header className="border-b h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="border-b border-border/30 h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-cyber-dark/95 backdrop-blur supports-[backdrop-filter]:bg-cyber-dark/60">
       <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5" />
-        <h1 className="text-lg font-semibold">Alfred</h1>
+        <Zap className="h-5 w-5 text-cyber-primary" />
+        <h1 className="text-lg font-semibold text-cyber-primary">ALFRED</h1>
       </div>
       
       <div className="flex items-center gap-2">
@@ -68,6 +68,7 @@ export function ChatHeader() {
                 size="icon" 
                 onClick={() => startNewChat()}
                 aria-label="New Chat"
+                className="hover:bg-cyber-primary/20 hover:text-cyber-primary"
               >
                 <PlusCircle className="h-5 w-5" />
               </Button>
@@ -86,6 +87,7 @@ export function ChatHeader() {
                       variant="ghost" 
                       size="icon"
                       aria-label="Knowledge Settings"
+                      className="hover:bg-cyber-primary/20 hover:text-cyber-primary"
                     >
                       <Sliders className="h-5 w-5" />
                     </Button>
@@ -94,9 +96,9 @@ export function ChatHeader() {
                 <TooltipContent>Knowledge Settings</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] bg-cyber-dark border-cyber-primary/30">
               <DialogHeader>
-                <DialogTitle>Advanced Knowledge Settings</DialogTitle>
+                <DialogTitle className="text-cyber-primary">Advanced Knowledge Settings</DialogTitle>
                 <DialogDescription>
                   Configure how Alfred uses documents and web search to enhance responses.
                 </DialogDescription>
@@ -115,6 +117,7 @@ export function ChatHeader() {
                     variant="ghost" 
                     size="icon"
                     aria-label="Settings"
+                    className="hover:bg-cyber-primary/20 hover:text-cyber-primary"
                   >
                     <Settings className="h-5 w-5" />
                   </Button>
@@ -124,19 +127,19 @@ export function ChatHeader() {
             </Tooltip>
           </TooltipProvider>
           
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Settings</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+          <DropdownMenuContent align="end" className="bg-cyber-dark border-cyber-primary/30">
+            <DropdownMenuLabel className="text-cyber-primary">Settings</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-cyber-primary/20" />
             
             <Dialog open={apiDialogOpen} onOpenChange={setApiDialogOpen}>
               <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary">
                   Hugging Face API Key
                 </DropdownMenuItem>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-cyber-dark border-cyber-primary/30">
                 <DialogHeader>
-                  <DialogTitle>Hugging Face API Key</DialogTitle>
+                  <DialogTitle className="text-cyber-primary">Hugging Face API Key</DialogTitle>
                   <DialogDescription>
                     Enter your Hugging Face API key to access AI models
                   </DialogDescription>
@@ -147,13 +150,13 @@ export function ChatHeader() {
             
             <Dialog open={braveApiDialogOpen} onOpenChange={setBraveApiDialogOpen}>
               <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary">
                   Brave Search API Key
                 </DropdownMenuItem>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-cyber-dark border-cyber-primary/30">
                 <DialogHeader>
-                  <DialogTitle>Brave Search API Key</DialogTitle>
+                  <DialogTitle className="text-cyber-primary">Brave Search API Key</DialogTitle>
                   <DialogDescription>
                     Enter your Brave Search API key to enable web search functionality
                   </DialogDescription>
@@ -164,13 +167,13 @@ export function ChatHeader() {
             
             <Dialog open={skillsDialogOpen} onOpenChange={setSkillsDialogOpen}>
               <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary">
                   Agent Skills
                 </DropdownMenuItem>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-cyber-dark border-cyber-primary/30">
                 <DialogHeader>
-                  <DialogTitle>Agent Skills</DialogTitle>
+                  <DialogTitle className="text-cyber-primary">Agent Skills</DialogTitle>
                   <DialogDescription>
                     Explore capabilities of your AI assistant
                   </DialogDescription>
@@ -181,31 +184,31 @@ export function ChatHeader() {
               </DialogContent>
             </Dialog>
             
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Models</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-cyber-primary/20" />
+            <DropdownMenuLabel className="text-cyber-primary">Models</DropdownMenuLabel>
             
             {availableModels.map(model => (
               <DropdownMenuItem 
                 key={model.id}
                 onSelect={() => setActiveModel(model)}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
               >
                 <span>{model.name}</span>
                 {activeModel.id === model.id && (
-                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  <span className="h-2 w-2 rounded-full bg-cyber-primary" />
                 )}
               </DropdownMenuItem>
             ))}
             
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Knowledge</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-cyber-primary/20" />
+            <DropdownMenuLabel className="text-cyber-primary">Knowledge</DropdownMenuLabel>
             
             <DropdownMenuItem
               onSelect={(e) => {
                 e.preventDefault();
                 setRagEnabled(!ragEnabled);
               }}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
             >
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4" />
@@ -215,6 +218,7 @@ export function ChatHeader() {
                 checked={ragEnabled} 
                 onCheckedChange={setRagEnabled} 
                 onClick={(e) => e.stopPropagation()}
+                className="data-[state=checked]:bg-cyber-primary data-[state=checked]:border-cyber-primary"
               />
             </DropdownMenuItem>
             
@@ -227,7 +231,7 @@ export function ChatHeader() {
                 }
                 setWebSearchEnabled(!webSearchEnabled);
               }}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
             >
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4" />
@@ -244,6 +248,7 @@ export function ChatHeader() {
                 }} 
                 onClick={(e) => e.stopPropagation()}
                 disabled={!isBraveKeySet && !webSearchEnabled}
+                className="data-[state=checked]:bg-cyber-primary data-[state=checked]:border-cyber-primary"
               />
             </DropdownMenuItem>
             
@@ -253,6 +258,7 @@ export function ChatHeader() {
                   e.preventDefault();
                   setAdvancedRagDialogOpen(true);
                 }}
+                className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
               >
                 <div className="flex items-center gap-2">
                   <Sliders className="h-4 w-4" />
