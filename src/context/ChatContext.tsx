@@ -21,6 +21,7 @@ import {
   Skill
 } from '@/lib/skillsService';
 import { WeatherData } from '@/lib/weatherService';
+import { useWorkspace } from './WorkspaceContext';
 
 // Define skill result type
 type SkillResult = {
@@ -34,6 +35,15 @@ type ThreadedMessage = Message & {
   parentId?: string; // ID of the parent message in a thread
   hasThread?: boolean; // Whether this message has a thread
   skillResult?: SkillResult; // Add this property for skill results
+  workspaceId?: string; // ID of the workspace this message belongs to
+};
+
+// Define chat type to include workspace ID
+type Chat = {
+  id: string;
+  title: string;
+  messages: ThreadedMessage[];
+  workspaceId: string; // Associated workspace ID
 };
 
 // Define RAG settings type
@@ -52,7 +62,7 @@ type ChatContextType = {
   isLoading: boolean;
   activeChatId: string | null;
   activeThreadId: string | null;
-  chats: { id: string; title: string; messages: ThreadedMessage[] }[];
+  chats: Chat[];
   activeModel: HuggingFaceModel;
   availableModels: HuggingFaceModel[];
   isApiKeySet: boolean;
@@ -91,7 +101,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 // Create a provider component
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [chats, setChats] = useState<{ id: string; title: string; messages: ThreadedMessage[] }[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -103,6 +113,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [skillsEnabled, setSkillsEnabled] = useState<boolean>(true);
   
   const { toast } = useToast();
+  const { activeWorkspaceId } = useWorkspace();
 
   // Effect to initialize from localStorage
   useEffect(() => {
@@ -191,9 +202,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   }, []);
 
-  // Get the active chat's messages
+  // Get the active chat's messages, filtered by workspace
   const messages = activeChatId 
-    ? chats.find(chat => chat.id === activeChatId)?.messages.filter(msg => {
+    ? chats.find(chat => chat.id === activeChatId && (!activeWorkspaceId || chat.workspaceId === activeWorkspaceId))?.messages.filter(msg => {
         if (activeThreadId) {
           // When viewing a thread, show only messages in this thread
           return msg.threadId === activeThreadId || msg.id === activeThreadId;
@@ -206,24 +217,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Start a new chat
   const startNewChat = useCallback(() => {
+    if (!activeWorkspaceId) return;
+
     const systemMessage: ThreadedMessage = {
       id: uuidv4(),
       role: 'system',
       content: 'You are a helpful, friendly, and knowledgeable AI assistant. Answer questions accurately and helpfully.',
-      timestamp: new Date()
+      timestamp: new Date(),
+      workspaceId: activeWorkspaceId
     };
     
     const newChatId = uuidv4();
-    const newChat = {
+    const newChat: Chat = {
       id: newChatId,
       title: 'New Chat',
-      messages: [systemMessage]
+      messages: [systemMessage],
+      workspaceId: activeWorkspaceId
     };
     
     setChats(prev => [...prev, newChat]);
     setActiveChatId(newChatId);
     setActiveThreadId(null);
-  }, []);
+  }, [activeWorkspaceId]);
 
   // Start a thread from a message
   const startThread = useCallback((messageId: string) => {
@@ -251,16 +266,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveThreadId(null);
   }, []);
 
-  // If no chats exist, start a new one
+  // If no chats exist for the active workspace, start a new one
   useEffect(() => {
-    if (chats.length === 0 && isApiKeySet) {
-      startNewChat();
-    } else if (activeChatId && !chats.find(chat => chat.id === activeChatId)) {
-      // If active chat doesn't exist anymore, set to first available or null
-      setActiveChatId(chats.length > 0 ? chats[0].id : null);
-      setActiveThreadId(null);
+    if (isApiKeySet && activeWorkspaceId) {
+      const workspaceChats = chats.filter(chat => chat.workspaceId === activeWorkspaceId);
+      
+      if (workspaceChats.length === 0) {
+        startNewChat();
+      } else if (!activeChatId || !workspaceChats.some(chat => chat.id === activeChatId)) {
+        // If active chat doesn't exist in this workspace, set to first available
+        setActiveChatId(workspaceChats[0].id);
+        setActiveThreadId(null);
+      }
     }
-  }, [chats, activeChatId, startNewChat, isApiKeySet]);
+  }, [chats, activeChatId, startNewChat, isApiKeySet, activeWorkspaceId]);
 
   // Switch to a different chat
   const switchChat = useCallback((chatId: string) => {
@@ -270,24 +289,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Delete a chat
   const deleteChat = useCallback((chatId: string) => {
+    if (!activeWorkspaceId) return false;
+    
+    // Filter chats by active workspace before deciding what to do
+    const workspaceChats = chats.filter(chat => chat.workspaceId === activeWorkspaceId);
+    
+    // Don't allow deleting if it's the only chat in the workspace
+    if (workspaceChats.length <= 1) {
+      toast({
+        title: "Cannot Delete",
+        description: "You must have at least one chat in each workspace",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
     setChats(prev => prev.filter(chat => chat.id !== chatId));
     
-    // If deleted the active chat, switch to first available or null
+    // If deleted the active chat, switch to first available in the workspace
     if (activeChatId === chatId) {
-      setActiveChatId(prev => {
-        const remainingChats = chats.filter(chat => chat.id !== chatId);
-        return remainingChats.length > 0 ? remainingChats[0].id : null;
-      });
+      const remainingWorkspaceChats = workspaceChats.filter(chat => chat.id !== chatId);
+      if (remainingWorkspaceChats.length > 0) {
+        setActiveChatId(remainingWorkspaceChats[0].id);
+      }
       setActiveThreadId(null);
     }
-  }, [activeChatId, chats]);
+    
+    return true;
+  }, [activeChatId, chats, activeWorkspaceId, toast]);
 
-  // Clear all chats
+  // Clear all chats for the current workspace
   const clearChats = useCallback(() => {
-    setChats([]);
+    if (!activeWorkspaceId) return;
+    
+    setChats(prev => prev.filter(chat => chat.workspaceId !== activeWorkspaceId));
     setActiveChatId(null);
     setActiveThreadId(null);
-  }, []);
+    startNewChat(); // Create a new chat for the workspace
+  }, [activeWorkspaceId, startNewChat]);
 
   // Set the API key
   const updateApiKey = useCallback((key: string) => {
@@ -295,7 +334,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setApiKey(key);
       setIsApiKeySet(!!key);
       
-      if (!!key && chats.length === 0) {
+      if (!!key && activeWorkspaceId && !chats.some(chat => chat.workspaceId === activeWorkspaceId)) {
         startNewChat();
       }
       
@@ -304,7 +343,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error setting API key:', error);
       return false;
     }
-  }, [chats.length, startNewChat]);
+  }, [chats, startNewChat, activeWorkspaceId]);
 
   // Update the model
   const updateActiveModel = useCallback((model: HuggingFaceModel) => {
@@ -313,7 +352,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Send a message
   const sendMessage = useCallback(async (content: string, parentId?: string) => {
-    if (!activeChatId) return;
+    if (!activeChatId || !activeWorkspaceId) return;
     
     try {
       // Create user message
@@ -323,13 +362,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         content,
         timestamp: new Date(),
         threadId: parentId ? activeThreadId : undefined,
-        parentId: parentId || undefined
+        parentId: parentId || undefined,
+        workspaceId: activeWorkspaceId
       };
       
       // Add user message to chat
       setChats(prev => {
         return prev.map(chat => {
-          if (chat.id === activeChatId) {
+          if (chat.id === activeChatId && chat.workspaceId === activeWorkspaceId) {
             // Auto-generate title from first user message if still default
             let updatedChat = {
               ...chat,
@@ -483,8 +523,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
       
+
       // Get the updated messages after adding user message
-      const currentChat = chats.find(chat => chat.id === activeChatId);
+      const currentChat = chats.find(chat => chat.id === activeChatId && chat.workspaceId === activeWorkspaceId);
       if (!currentChat) throw new Error('Chat not found');
       
       // Filter messages to get relevant context for the thread
@@ -541,19 +582,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         skillResult: skillUsed && skillResult ? {
           skillId: skillUsed.id,
           data: skillResult
-        } : undefined
+        } : undefined,
+        workspaceId: activeWorkspaceId
       };
       
       // Add assistant message to chat
       setChats(prev => {
         return prev.map(chat => {
-          if (chat.id === activeChatId) {
+          if (chat.id === activeChatId && chat.workspaceId === activeWorkspaceId) {
             return {
               ...chat,
-              messages: [...chat.messages, {
-                ...assistantMessage,
-                sources
-              }]
+              messages: [...chat.messages, assistantMessage]
             };
           }
           return chat;
@@ -570,7 +609,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Remove the user message if failed
       setChats(prev => {
         return prev.map(chat => {
-          if (chat.id === activeChatId) {
+          if (chat.id === activeChatId && chat.workspaceId === activeWorkspaceId) {
             return {
               ...chat,
               messages: chat.messages.filter(m => m.content !== content || m.role !== 'user')
@@ -582,7 +621,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, activeThreadId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled, ragSettings, skillsEnabled]);
+  }, [activeChatId, activeThreadId, activeWorkspaceId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled, ragSettings, skillsEnabled]);
 
   const value = {
     messages,
