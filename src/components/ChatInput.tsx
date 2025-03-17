@@ -3,9 +3,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { SendHorizontal, Search, MessageCircle } from 'lucide-react';
+import { SendHorizontal, Search, MessageCircle, Cpu } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { isBraveApiKeySet } from '@/lib/webSearchService';
+import { isWeatherApiKeySet } from '@/lib/weatherService';
+import { availableSkills } from '@/lib/skillsService';
 
 export function ChatInput() {
   const { 
@@ -19,6 +21,12 @@ export function ChatInput() {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isBraveKeySet = isBraveApiKeySet();
+  const isWeatherKeySet = isWeatherApiKeySet();
+
+  // Count enabled skills
+  const enabledSkillsCount = availableSkills.filter(skill => 
+    skill.enabled && (!skill.requiresApiKey || (skill.isApiKeySet && skill.isApiKeySet()))
+  ).length;
 
   useEffect(() => {
     // Auto focus the textarea on component mount
@@ -73,6 +81,12 @@ export function ChatInput() {
               <span>Web Search (API Key Required)</span>
             </Badge>
           )}
+          {enabledSkillsCount > 0 && (
+            <Badge variant="outline" className="bg-cyber-primary/20 flex items-center gap-1">
+              <Cpu className="h-3 w-3" />
+              <span>{enabledSkillsCount} AI Skills</span>
+            </Badge>
+          )}
         </div>
         
         <form onSubmit={handleSubmit} className="relative">
@@ -92,7 +106,7 @@ export function ChatInput() {
                 ? "Ask anything (web search enabled)..."
                 : isWebSearchPending
                 ? "Set your Brave Search API key in settings"
-                : "Type a message..."
+                : "Ask me anything or try: 'weather in Tokyo'"
             }
             disabled={isLoading || !isApiKeySet}
             className="resize-none pr-12 min-h-[60px] max-h-40 focus-visible:ring-1 smooth-transition"
@@ -116,6 +130,8 @@ export function ChatInput() {
             "Web search is enabled but requires a Brave Search API key"
           ) : activeThreadId ? (
             "Replying in thread - Press Enter to send"
+          ) : enabledSkillsCount > 0 ? (
+            `Ask me anything or try AI skills like "weather in Tokyo"`
           ) : (
             "Press Enter to send, Shift+Enter for a new line"
           )}

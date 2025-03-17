@@ -14,6 +14,13 @@ import {
 } from '@/lib/api';
 import { useToast } from "@/hooks/use-toast";
 import { searchWeb, formatSearchResultsAsContext } from '@/lib/webSearchService';
+import { 
+  availableSkills, 
+  detectSkill, 
+  executeSkill,
+  Skill
+} from '@/lib/skillsService';
+import { WeatherData } from '@/lib/weatherService';
 
 // Extend the Message type to support threading
 type ThreadedMessage = Message & {
@@ -45,6 +52,9 @@ type ChatContextType = {
   ragEnabled: boolean;
   webSearchEnabled: boolean;
   ragSettings: RagSettings;
+  skillsEnabled: boolean;
+  setSkillsEnabled: (enabled: boolean) => void;
+  availableSkills: Skill[];
   setRagEnabled: (enabled: boolean) => void;
   setWebSearchEnabled: (enabled: boolean) => void;
   updateRagSettings: (settings: Partial<RagSettings>) => void;
@@ -83,6 +93,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
   const [ragSettings, setRagSettings] = useState<RagSettings>(DEFAULT_RAG_SETTINGS);
+  const [skillsEnabled, setSkillsEnabled] = useState<boolean>(true);
   
   const { toast } = useToast();
 
@@ -95,6 +106,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedRagEnabled = localStorage.getItem('ragEnabled');
     const savedWebSearchEnabled = localStorage.getItem('webSearchEnabled');
     const savedRagSettings = localStorage.getItem('ragSettings');
+    const savedSkillsEnabled = localStorage.getItem('skillsEnabled');
     
     if (savedChats) {
       try {
@@ -135,6 +147,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Failed to parse saved RAG settings:', e);
       }
     }
+    
+    if (savedSkillsEnabled) {
+      setSkillsEnabled(savedSkillsEnabled === 'true');
+    }
   }, []);
 
   // Effect to save to localStorage when state changes
@@ -157,7 +173,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('ragEnabled', ragEnabled.toString());
     localStorage.setItem('webSearchEnabled', webSearchEnabled.toString());
     localStorage.setItem('ragSettings', JSON.stringify(ragSettings));
-  }, [chats, activeChatId, activeThreadId, activeModel.id, ragEnabled, webSearchEnabled, ragSettings]);
+    localStorage.setItem('skillsEnabled', skillsEnabled.toString());
+  }, [chats, activeChatId, activeThreadId, activeModel.id, ragEnabled, webSearchEnabled, ragSettings, skillsEnabled]);
 
   // Update RAG settings
   const updateRagSettings = useCallback((settings: Partial<RagSettings>) => {
@@ -326,6 +343,26 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       setIsLoading(true);
+
+      // Check if query matches any skill
+      let skillResult: any = null;
+      let skillUsed: Skill | null = null;
+      
+      if (skillsEnabled) {
+        skillUsed = detectSkill(content, availableSkills);
+        
+        if (skillUsed) {
+          try {
+            console.log(`Using skill: ${skillUsed.name} for query: ${content}`);
+            skillResult = await executeSkill(skillUsed, content);
+            console.log('Skill result:', skillResult);
+          } catch (error) {
+            console.error(`Error executing skill ${skillUsed.name}:`, error);
+            // Continue with regular AI response if skill fails
+            skillUsed = null;
+          }
+        }
+      }
       
       // If RAG is enabled, search for similar documents
       let context: any = undefined;
@@ -452,13 +489,38 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       const updatedMessages = [...contextMessages, userMessage];
+
+      let assistantContent = '';
       
-      // Query the model
-      const assistantContent = await queryModel(
-        activeModel.id,
-        updatedMessages,
-        context
-      );
+      // Handle skill response if applicable
+      if (skillUsed && skillResult) {
+        // For skills like weather, create a tailored response
+        if (skillUsed.id === 'weather') {
+          const weatherData = skillResult as WeatherData;
+          assistantContent = `Here's the current weather for ${weatherData.location}:\n\n` +
+            `🌡️ Temperature: ${weatherData.temperature}°C\n` +
+            `☁️ Conditions: ${weatherData.condition}\n` +
+            `💧 Humidity: ${weatherData.humidity}%\n` +
+            `🌬️ Wind: ${weatherData.windSpeed} m/s`;
+            
+          if (weatherData.forecast) {
+            assistantContent += "\n\n**5-Day Forecast:**\n";
+            weatherData.forecast.forEach(day => {
+              assistantContent += `- ${day.date}: ${day.condition}, ${day.temperature.min}°C to ${day.temperature.max}°C\n`;
+            });
+          }
+        } else {
+          // Generic skill response format
+          assistantContent = `I've found this information for you:\n\n${JSON.stringify(skillResult, null, 2)}`;
+        }
+      } else {
+        // Normal AI query without skill
+        assistantContent = await queryModel(
+          activeModel.id,
+          updatedMessages,
+          context
+        );
+      }
       
       // Create assistant message
       const assistantMessage: ThreadedMessage = {
@@ -468,7 +530,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         timestamp: new Date(),
         sources: sources.length > 0 ? sources : undefined,
         threadId: userMessage.threadId,
-        parentId: userMessage.id
+        parentId: userMessage.id,
+        skillResult: skillUsed && skillResult ? {
+          skillId: skillUsed.id,
+          data: skillResult
+        } : undefined
       };
       
       // Add assistant message to chat
@@ -509,7 +575,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, activeThreadId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled, ragSettings]);
+  }, [activeChatId, activeThreadId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled, ragSettings, skillsEnabled]);
 
   const value = {
     messages,
@@ -523,6 +589,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ragEnabled,
     webSearchEnabled,
     ragSettings,
+    skillsEnabled,
+    setSkillsEnabled,
+    availableSkills,
     setRagEnabled,
     setWebSearchEnabled,
     updateRagSettings,
