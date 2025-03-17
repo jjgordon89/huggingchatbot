@@ -7,7 +7,7 @@ import { ChatInput } from '@/components/ChatInput';
 import { ApiKeyForm } from '@/components/ApiKeyForm';
 import { BraveApiKeyForm } from '@/components/BraveApiKeyForm';
 import { isBraveApiKeySet } from '@/lib/webSearchService';
-import { Circuit, Zap } from 'lucide-react';
+import { Cpu, Zap } from 'lucide-react';
 
 const Index = () => {
   const { isApiKeySet, webSearchEnabled, activeThreadId, ragEnabled } = useChat();
