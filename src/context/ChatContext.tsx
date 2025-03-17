@@ -22,11 +22,18 @@ import {
 } from '@/lib/skillsService';
 import { WeatherData } from '@/lib/weatherService';
 
+// Define skill result type
+type SkillResult = {
+  skillId: string;
+  data: any;
+};
+
 // Extend the Message type to support threading
 type ThreadedMessage = Message & {
   threadId?: string; // ID of the thread this message belongs to
   parentId?: string; // ID of the parent message in a thread
   hasThread?: boolean; // Whether this message has a thread
+  skillResult?: SkillResult; // Add this property for skill results
 };
 
 // Define RAG settings type
