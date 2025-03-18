@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -322,10 +323,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearChats = useCallback(() => {
     if (!activeWorkspaceId) return;
     
-    setChats(prev => prev.filter(chat => chat.workspaceId !== activeWorkspaceId));
+    // Filter out chats from the current workspace
+    setChats(prev => {
+      const filteredChats = prev.filter(chat => chat.workspaceId !== activeWorkspaceId);
+      return filteredChats;
+    });
+    
     setActiveChatId(null);
     setActiveThreadId(null);
-    startNewChat(); // Create a new chat for the workspace
+    
+    // Create a new chat for the workspace
+    startNewChat();
   }, [activeWorkspaceId, startNewChat]);
 
   // Set the API key
