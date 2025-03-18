@@ -377,17 +377,15 @@ export function ChatSidebar() {
                   <MessageSquare className="h-4 w-4 shrink-0" />
                   <span className="truncate">{chat.title}</span>
                   {chat.id === activeChatId && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 ml-auto rounded-full hover:bg-destructive/10 hover:text-destructive"
+                    <div
+                      className="ml-auto"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteChat(chat.id);
                       }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                      <Trash2 className="h-3.5 w-3.5 cursor-pointer hover:text-destructive" />
+                    </div>
                   )}
                 </div>
               </Button>
