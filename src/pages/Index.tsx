@@ -1,107 +1,165 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  Workflow, 
+  FileText, 
+  Database, 
+  BrainCircuit, 
+  Settings,
+  ChevronRight
+} from 'lucide-react';
+import { useWorkspace } from '@/context/WorkspaceContext';
 
-import { useChat } from '@/context/ChatContext';
-import { ChatHeader } from '@/components/ChatHeader';
-import { ChatSidebar } from '@/components/ChatSidebar';
-import { ChatMessages } from '@/components/ChatMessages';
-import { ChatInput } from '@/components/ChatInput';
-import { ApiKeyForm } from '@/components/ApiKeyForm';
-import { BraveApiKeyForm } from '@/components/BraveApiKeyForm';
-import { isBraveApiKeySet } from '@/lib/webSearchService';
-import { Cpu, Zap } from 'lucide-react';
-
-const Index = () => {
-  const { isApiKeySet, webSearchEnabled, activeThreadId, ragEnabled } = useChat();
-
-  // Check if web search is enabled but no Brave API key is set
-  const needsBraveApiKey = webSearchEnabled && !isBraveApiKeySet();
-
-  if (!isApiKeySet) {
-    return (
-      <div className="min-h-screen flex flex-col bg-cyber-dark">
-        <ChatHeader />
-        <div 
-          className="flex-1 flex items-center justify-center p-4" 
-          style={{
-            backgroundSize: '40px 40px',
-            backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.1) 1px, transparent 1px)'
-          }}
-        >
-          <div className="w-full max-w-md cyber-card p-6 rounded-lg">
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-cyber-primary/10 flex items-center justify-center">
-                <Zap className="h-8 w-8 text-cyber-primary" />
-              </div>
-            </div>
-            <ApiKeyForm />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (needsBraveApiKey) {
-    return (
-      <div className="min-h-screen flex flex-col bg-cyber-dark">
-        <ChatHeader />
-        <div 
-          className="flex-1 flex items-center justify-center p-4"
-          style={{
-            backgroundSize: '40px 40px',
-            backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.1) 1px, transparent 1px)'
-          }}
-        >
-          <div className="w-full max-w-md cyber-card p-6 rounded-lg">
-            <h2 className="text-xl font-bold mb-4 text-cyber-primary">Brave Search API Key Required</h2>
-            <p className="mb-4 text-muted-foreground">
-              You've enabled web search, but we need a Brave Search API key to continue.
-            </p>
-            <BraveApiKeyForm />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+export default function Index() {
+  const { workspaces, activeWorkspaceId } = useWorkspace();
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
+  
   return (
-    <div className="min-h-screen flex flex-col bg-cyber-dark">
-      <ChatHeader />
-      <div className="flex-1 flex flex-col md:ml-72 relative">
-        <ChatSidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {activeThreadId ? (
-            <ChatMessages />
-          ) : (
-            <>
-              <div className="flex-1 overflow-y-auto">
-                <div 
-                  className="h-full flex flex-col items-center justify-center p-4"
-                  style={{
-                    backgroundSize: '40px 40px',
-                    backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.1) 1px, transparent 1px)',
-                    backgroundPosition: 'center'
-                  }}
-                >
-                  <div className="w-full max-w-md text-center mb-8">
-                    <div className="flex justify-center mb-6">
-                      <div className="w-16 h-16 rounded-full bg-cyber-primary/10 flex items-center justify-center">
-                        <Zap className="h-8 w-8 text-cyber-primary" />
-                      </div>
-                    </div>
-                    <h1 className="text-2xl font-bold mb-2 neon-text">ALFRED AI</h1>
-                    <p className="text-muted-foreground mb-6">
-                      Ask me anything or upload documents for advanced assistance
-                    </p>
+    <div className="container py-8 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Welcome to AI Platform</h1>
+          <p className="text-muted-foreground">
+            Build and deploy AI workflows, manage knowledge bases, and fine-tune models
+          </p>
+        </div>
+        
+        <Button asChild>
+          <Link to="/profile">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Link>
+        </Button>
+      </div>
+      
+      {activeWorkspace && (
+        <Card className="mb-8">
+          <CardHeader className="pb-3">
+            <CardTitle>Active Workspace: {activeWorkspace.name}</CardTitle>
+            <CardDescription>
+              {activeWorkspace.description || 'No description'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 p-2 rounded-md">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Documents</div>
+                  <div className="text-sm text-muted-foreground">
+                    {activeWorkspace.documents?.length || 0} document(s)
                   </div>
                 </div>
               </div>
-              <ChatMessages />
-            </>
-          )}
-          <ChatInput />
-        </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 p-2 rounded-md">
+                  <BrainCircuit className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Model</div>
+                  <div className="text-sm text-muted-foreground">
+                    {activeWorkspace.llmConfig?.model || "Default model"}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 p-2 rounded-md">
+                  <Settings className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Settings</div>
+                  <div className="text-sm text-muted-foreground">
+                    {Object.keys(activeWorkspace.settings || {}).length || 0} configuration(s)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Workflow className="h-5 w-5" />
+              Workflow Builder
+            </CardTitle>
+            <CardDescription>
+              Build and deploy AI agent workflows
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Create custom AI workflows with our visual editor. Connect different components to build powerful agent processes.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link to="/workflow-builder">
+                Open Workflow Builder
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Knowledge Base
+            </CardTitle>
+            <CardDescription>
+              Manage your documents and knowledge
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Upload and manage documents to create a knowledge base for your AI agents. Enhance your AI with domain-specific information.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link to="/knowledge-base">
+                Open Knowledge Base
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5" />
+              Fine-Tuning
+            </CardTitle>
+            <CardDescription>
+              Create and manage fine-tuned models
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Fine-tune foundation models on your custom data to improve performance on specific tasks and domains.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link to="/fine-tuning">
+                Open Fine-Tuning
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
-};
-
-export default Index;
+}

@@ -1,682 +1,369 @@
-import { useToast } from "@/hooks/use-toast";
-import * as pdfjs from 'pdfjs-dist';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
+/**
+ * API utilities for the application
+ * This file provides functions for accessing external APIs and services
+ */
 
-// Set worker path for PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
-// Types
-export type HuggingFaceModel = {
+/**
+ * Embedding model information
+ */
+export interface EmbeddingModel {
   id: string;
   name: string;
-  description?: string;
-  task?: string;
-};
+  dimensions: number;
+  language: string;
+  description: string;
+  category: string;
+}
 
-export type Message = {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: Date;
-  sources?: string[];
-};
+/**
+ * Available embedding models
+ */
+export const EMBEDDING_MODELS: EmbeddingModel[] = [
+  {
+    id: "BAAI/bge-small-en-v1.5",
+    name: "BGE Small",
+    dimensions: 384,
+    language: "English",
+    description: "Fast and efficient embedding model, good balance of speed and quality",
+    category: "general"
+  },
+  {
+    id: "BAAI/bge-base-en-v1.5",
+    name: "BGE Base",
+    dimensions: 768,
+    language: "English",
+    description: "Standard embedding model with good performance across various tasks",
+    category: "general"
+  },
+  {
+    id: "BAAI/bge-large-en-v1.5",
+    name: "BGE Large",
+    dimensions: 1024,
+    language: "English",
+    description: "High-quality embedding model for maximum accuracy, larger context window",
+    category: "general"
+  },
+  {
+    id: "sentence-transformers/all-MiniLM-L6-v2",
+    name: "MiniLM",
+    dimensions: 384,
+    language: "English",
+    description: "Very efficient model, good for resource-constrained environments",
+    category: "general"
+  },
+  {
+    id: "sentence-transformers/all-mpnet-base-v2",
+    name: "MPNet",
+    dimensions: 768,
+    language: "English",
+    description: "Strong general purpose embeddings with good semantic understanding",
+    category: "general"
+  },
+  {
+    id: "thenlper/gte-large",
+    name: "GTE Large",
+    dimensions: 1024,
+    language: "Multilingual",
+    description: "General Text Embeddings model with strong performance across languages",
+    category: "multilingual"
+  },
+  {
+    id: "intfloat/e5-large-v2",
+    name: "E5 Large",
+    dimensions: 1024,
+    language: "English",
+    description: "Optimized for retrieval tasks with excellent performance",
+    category: "specialized"
+  },
+  {
+    id: "jinaai/jina-embeddings-v2-base-en",
+    name: "Jina Base",
+    dimensions: 768,
+    language: "English",
+    description: "Efficient embeddings with strong performance on retrieval tasks",
+    category: "specialized"
+  }
+];
 
-export type ConversationContext = {
-  documents?: string[];
-  sources?: string[];
-};
+/**
+ * Current embedding model state
+ */
+let currentEmbeddingModel: EmbeddingModel = EMBEDDING_MODELS[0];
 
-export type Document = {
+/**
+ * Get the current embedding model
+ * @returns The current embedding model
+ */
+export function getCurrentEmbeddingModel(): EmbeddingModel {
+  return currentEmbeddingModel;
+}
+
+/**
+ * Set the current embedding model by ID
+ * @param modelId The model ID to set as current
+ * @returns The new current model
+ */
+export function setEmbeddingModel(modelId: string): EmbeddingModel {
+  const model = EMBEDDING_MODELS.find(m => m.id === modelId);
+  if (!model) {
+    throw new Error(`Embedding model ${modelId} not found`);
+  }
+  
+  currentEmbeddingModel = model;
+  return model;
+}
+
+/**
+ * Create embeddings for the given texts
+ * This is a mock implementation that generates random embeddings of the correct dimension
+ * In a real implementation, this would call a Hugging Face API endpoint
+ * 
+ * @param texts Array of texts to generate embeddings for
+ * @param modelId Optional model ID (defaults to current model)
+ * @returns Promise resolving to array of embedding arrays
+ */
+export async function createEmbeddings(
+  texts: string[], 
+  modelId?: string
+): Promise<number[][]> {
+  const model = modelId 
+    ? EMBEDDING_MODELS.find(m => m.id === modelId) 
+    : currentEmbeddingModel;
+  
+  if (!model) {
+    throw new Error(`Embedding model ${modelId || 'unknown'} not found`);
+  }
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Generate random embeddings of the correct dimension
+  return texts.map(() => {
+    // Generate random unit vector of the correct dimension
+    const vec = Array.from({ length: model.dimensions }, () => Math.random() * 2 - 1);
+    
+    // Normalize to unit length
+    const magnitude = Math.sqrt(vec.reduce((sum, val) => sum + val * val, 0));
+    return vec.map(v => v / magnitude);
+  });
+}
+
+/**
+ * Saves API keys to local storage
+ * @param apiKey The API key to save
+ * @param type The type of API key
+ */
+export function saveApiKey(apiKey: string, type: string): void {
+  localStorage.setItem(`${type}_api_key`, apiKey);
+}
+
+/**
+ * Gets an API key from local storage
+ * @param type The type of API key
+ * @returns The API key or empty string if not found
+ */
+export function getApiKey(type: string): string {
+  return localStorage.getItem(`${type}_api_key`) || '';
+}
+
+/**
+ * Sets API key in storage
+ * @param key The key to store
+ * @param provider Optional provider name (defaults to 'hugging face')
+ */
+export function setApiKey(key: string, provider: string = 'hugging face'): boolean {
+  try {
+    localStorage.setItem(`${provider}_api_key`, key);
+    return true;
+  } catch (error) {
+    console.error('Error setting API key:', error);
+    return false;
+  }
+}
+
+/**
+ * Document type for retrievable documents
+ */
+export interface DocumentType {
   id: string;
   title: string;
   content: string;
-  type: DocumentType;
-  vector?: number[];
-  createdAt: Date;
-  metadata?: Record<string, any>;
-};
+  metadata?: any;
+}
 
-export type DocumentType = "text" | "markdown" | "pdf" | "code" | "json" | "csv" | "excel" | "html";
+/**
+ * Chat message interface
+ */
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+}
 
-export type EmbeddingModel = {
+/**
+ * LLM Model interface
+ */
+export interface HuggingFaceModel {
   id: string;
   name: string;
   description: string;
-  dimensions: number;
-};
+  provider: string;
+  maxTokens: number;
+  contextWindow?: number;
+  pricingInfo?: string;
+  strengths?: string[];
+  icon?: any;
+  category?: 'open-source' | 'proprietary' | 'local';
+  task?: string;
+}
 
-// API Configuration
-let API_KEY = localStorage.getItem('hf_api_key') || '';
+/**
+ * OpenRouter model interface
+ */
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  context_length: number;
+  pricing: {
+    prompt: number;
+    completion: number;
+  };
+  top_provider: {
+    id: string;
+    name: string;
+  };
+}
 
-export const setApiKey = (key: string) => {
-  API_KEY = key;
-  localStorage.setItem('hf_api_key', key);
-  return API_KEY;
-};
-
-export const getApiKey = () => API_KEY;
-
-export const isApiKeyValid = () => {
-  return !!API_KEY && API_KEY.length > 0 && !API_KEY.includes('Connect Supabase');
-};
-
-// API Endpoints
-const API_BASE_URL = 'https://api-inference.huggingface.co/models';
-
-// Model configurations
+/**
+ * Available models
+ */
 export const AVAILABLE_MODELS: HuggingFaceModel[] = [
-  { 
-    id: 'mistralai/Mistral-7B-Instruct-v0.2', 
-    name: 'Mistral 7B', 
-    description: 'High-performance instruction-tuned model',
-    task: 'text-generation'
+  {
+    id: "gpt-4",
+    name: "GPT-4",
+    description: "OpenAI's most advanced model",
+    provider: "openai",
+    maxTokens: 8192
   },
-  { 
-    id: 'meta-llama/Llama-2-7b-chat-hf', 
-    name: 'Llama 2 (7B)', 
-    description: 'Open foundation chat model by Meta',
-    task: 'text-generation'
+  {
+    id: "gpt-3.5-turbo",
+    name: "GPT-3.5 Turbo",
+    description: "Fast and efficient OpenAI model",
+    provider: "openai",
+    maxTokens: 4096
   },
-  { 
-    id: 'microsoft/phi-2', 
-    name: 'Phi-2', 
-    description: 'Compact and efficient language model',
-    task: 'text-generation'
+  {
+    id: "claude-3-opus",
+    name: "Claude 3 Opus",
+    description: "Anthropic's most powerful model",
+    provider: "anthropic",
+    maxTokens: 100000
+  },
+  {
+    id: "mistral-large-latest",
+    name: "Mistral Large",
+    description: "Mistral AI's largest model",
+    provider: "mistral",
+    maxTokens: 32768
   }
 ];
 
-export const EMBEDDING_MODELS: EmbeddingModel[] = [
-  {
-    id: 'BAAI/bge-large-en-v1.5',
-    name: 'BGE Large',
-    description: 'High-performance English embedding model (1024 dimensions)',
-    dimensions: 1024
-  },
-  {
-    id: 'BAAI/bge-small-en-v1.5',
-    name: 'BGE Small',
-    description: 'Efficient English embedding model (384 dimensions)',
-    dimensions: 384
-  },
-  {
-    id: 'sentence-transformers/all-MiniLM-L6-v2',
-    name: 'MiniLM',
-    description: 'Lightweight and fast embedding model (384 dimensions)',
-    dimensions: 384
-  },
-  {
-    id: 'thenlper/gte-base',
-    name: 'GTE Base',
-    description: 'General Text Embeddings model (768 dimensions)',
-    dimensions: 768
-  }
-];
+/**
+ * Converts OpenRouter models to the application's model format
+ * @param models List of OpenRouter models
+ * @returns List of models in the application's format
+ */
+export function convertOpenRouterModels(models: OpenRouterModel[]): HuggingFaceModel[] {
+  return models.map(model => {
+    // Extract provider from model name or use top provider
+    const provider = model.top_provider?.name || 'OpenRouter';
+    
+    // Create description including pricing info
+    const pricePerThousandPrompt = (model.pricing.prompt * 1000).toFixed(4);
+    const pricePerThousandCompletion = (model.pricing.completion * 1000).toFixed(4);
+    const pricingInfo = `$${pricePerThousandPrompt}/1K prompt, $${pricePerThousandCompletion}/1K completion`;
 
-// API Interfaces
-export const queryModel = async (
-  modelId: string, 
-  messages: Message[], 
-  context?: ConversationContext,
-  options = {}
-): Promise<string> => {
-  if (!API_KEY) {
-    throw new Error('API key not set');
-  }
-
-  const isEmbeddingModel = modelId.includes('bge') || 
-                           modelId.includes('sentence-transformers') ||
-                           modelId.includes('gte');
-  
-  try {
-    // Format the prompt based on the model
-    let payload: any;
-    
-    if (isEmbeddingModel) {
-      // For embedding models
-      payload = {
-        inputs: messages[messages.length - 1].content,
-      };
-    } else {
-      // For text generation models
-      // Format prompt based on Mistral's expected format
-      const formattedPrompt = formatMessagesForModel(modelId, messages, context);
-      
-      payload = {
-        inputs: formattedPrompt,
-        parameters: {
-          max_new_tokens: 1024,
-          temperature: 0.7,
-          top_p: 0.95,
-          do_sample: true,
-          return_full_text: false,
-          ...options
-        }
-      };
-    }
-
-    const response = await fetch(`${API_BASE_URL}/${modelId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    // Check for API errors (rate limiting, etc.)
-    if (!response.ok) {
-      const error = await response.json();
-      
-      // Special handling for model loading
-      if (error.error && error.error.includes('Loading')) {
-        console.log('Model is loading:', error.error);
-        // Wait and retry
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        return queryModel(modelId, messages, context, options);
-      }
-      
-      throw new Error(`API error: ${error.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (isEmbeddingModel) {
-      // Return embedding data directly
-      return data;
-    } else {
-      // Extract generated text
-      if (Array.isArray(data) && data.length > 0) {
-        return data[0].generated_text || '';
-      }
-      return data.generated_text || '';
-    }
-  } catch (error) {
-    console.error('Error querying model:', error);
-    throw error;
-  }
-};
-
-// Formatter for different model prompts
-export const formatMessagesForModel = (
-  modelId: string, 
-  messages: Message[], 
-  context?: ConversationContext
-): string => {
-  let formattedPrompt = '';
-  
-  // Add context if available (RAG)
-  if (context?.documents && context.documents.length > 0) {
-    formattedPrompt += 'Context:\n' + context.documents.join('\n\n') + '\n\n';
-  }
-  
-  if (modelId.includes('mistral')) {
-    // Mistral format
-    messages.forEach((message) => {
-      if (message.role === 'system') {
-        formattedPrompt += `<s>[INST] ${message.content} [/INST]</s>\n`;
-      } else if (message.role === 'user') {
-        formattedPrompt += `<s>[INST] ${message.content} [/INST]`;
-      } else {
-        formattedPrompt += ` ${message.content}</s>\n`;
-      }
-    });
-    
-    // If the last message is from the user, prepare for assistant response
-    if (messages[messages.length - 1].role === 'user') {
-      formattedPrompt += ' ';
-    }
-  } else if (modelId.includes('llama')) {
-    // Llama 2 format
-    const systemMessage = messages.find(m => m.role === 'system')?.content || 
-      'You are a helpful assistant. Answer the user queries accurately and helpfully.';
-      
-    formattedPrompt = `<s>[INST] <<SYS>>\n${systemMessage}\n<</SYS>>\n\n`;
-    
-    // Add conversation history
-    for (let i = 0; i < messages.length; i++) {
-      const message = messages[i];
-      if (message.role === 'system') continue;
-      
-      if (message.role === 'user') {
-        formattedPrompt += `${message.content} [/INST] `;
-      } else {
-        formattedPrompt += `${message.content}</s> `;
-        
-        // Add next user instruction opening tag
-        if (i < messages.length - 1 && messages[i+1].role === 'user') {
-          formattedPrompt += `<s>[INST] `;
-        }
-      }
-    }
-  } else {
-    // Generic format for other models
-    const systemMessage = messages.find(m => m.role === 'system')?.content || 
-      'You are a helpful assistant.';
-    
-    formattedPrompt = `System: ${systemMessage}\n\n`;
-    
-    messages.forEach((message) => {
-      if (message.role === 'system') return;
-      
-      const role = message.role === 'user' ? 'User' : 'Assistant';
-      formattedPrompt += `${role}: ${message.content}\n`;
-    });
-    
-    formattedPrompt += 'Assistant:';
-  }
-  
-  return formattedPrompt;
-};
-
-// Document processing
-export type ProcessedDocument = {
-  title: string;
-  content: string;
-  type: DocumentType;
-  metadata?: Record<string, any>;
-};
-
-export const processDocumentFile = async (
-  file: File, 
-  onProgress?: (progress: number) => void
-): Promise<ProcessedDocument> => {
-  const filename = file.name;
-  const fileExt = filename.split('.').pop()?.toLowerCase() || '';
-  
-  // Determine document type based on extension
-  let docType: DocumentType = 'text';
-  let content = '';
-  let metadata: Record<string, any> = {};
-  
-  try {
-    // Process file based on type
-    if (fileExt === 'pdf') {
-      docType = 'pdf';
-      content = await extractTextFromPdf(file, onProgress);
-      metadata.pageCount = metadata.pageCount || 1;
-    } 
-    else if (fileExt === 'csv') {
-      docType = 'csv';
-      content = await extractTextFromCsv(file);
-    }
-    else if (fileExt === 'xlsx' || fileExt === 'xls') {
-      docType = 'excel';
-      content = await extractTextFromExcel(file);
-    }
-    else if (fileExt === 'md') {
-      docType = 'markdown';
-      content = await readTextFile(file);
-    }
-    else if (fileExt === 'json') {
-      docType = 'json';
-      content = await readTextFile(file);
-      try {
-        // Validate JSON and format it nicely
-        const jsonObj = JSON.parse(content);
-        content = JSON.stringify(jsonObj, null, 2);
-      } catch (e) {
-        // If JSON parsing fails, just use the raw content
-      }
-    }
-    else if (['html', 'htm'].includes(fileExt)) {
-      docType = 'html';
-      content = await readTextFile(file);
-    }
-    else if (['js', 'ts', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rb', 'php'].includes(fileExt)) {
-      docType = 'code';
-      content = await readTextFile(file);
-    }
-    else {
-      // Default to text for other types
-      content = await readTextFile(file);
-    }
-    
-    // Generate title from filename (remove extension)
-    const title = filename.replace(/\.[^/.]+$/, "");
-    
     return {
-      title,
-      content,
-      type: docType,
-      metadata
+      id: `openrouter/${model.id}`,  // Prefix with openrouter/ to distinguish
+      name: model.name,
+      description: `${provider} model via OpenRouter`,
+      provider: 'openrouter',
+      maxTokens: model.context_length,
+      contextWindow: model.context_length,
+      pricingInfo: pricingInfo,
+      strengths: [provider, `${model.context_length.toLocaleString()} context`],
+      category: 'proprietary',
     };
-  } catch (error) {
-    console.error('Error processing document:', error);
-    throw new Error(`Failed to process ${filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-};
-
-// Helper function to read text files
-const readTextFile = async (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsText(file);
   });
-};
+}
 
-// Helper function to extract text from PDF
-const extractTextFromPdf = async (
-  file: File, 
-  onProgress?: (progress: number) => void
-): Promise<string> => {
-  try {
-    // Load the PDF file
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument(new Uint8Array(arrayBuffer)).promise;
-    
-    const numPages = pdf.numPages;
-    let extractedText = '';
-    
-    // Extract text from each page
-    for (let i = 1; i <= numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      
-      extractedText += `[Page ${i}]\n${pageText}\n\n`;
-      
-      if (onProgress) {
-        onProgress(i / numPages);
-      }
-    }
-    
-    return extractedText.trim();
-  } catch (error) {
-    console.error('PDF extraction error:', error);
-    throw new Error('Failed to extract text from PDF');
-  }
-};
-
-// Helper function to extract text from CSV
-const extractTextFromCsv = async (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    Papa.parse(file, {
-      complete: (results) => {
-        if (results.errors && results.errors.length > 0) {
-          reject(new Error(`CSV parsing error: ${results.errors[0].message}`));
-          return;
-        }
-        
-        // Convert CSV data to a readable text format
-        let content = '';
-        
-        // Add headers as first line if present
-        if (results.data && results.data.length > 0) {
-          content += results.data[0].join(' | ') + '\n';
-          content += '-'.repeat(60) + '\n';
-          
-          // Add data rows
-          for (let i = 1; i < results.data.length; i++) {
-            content += results.data[i].join(' | ') + '\n';
-          }
-        }
-        
-        resolve(content);
-      },
-      error: (error) => {
-        reject(error);
-      }
-    });
-  });
-};
-
-// Helper function to extract text from Excel
-const extractTextFromExcel = async (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        let result = '';
-        
-        // Process each sheet
-        workbook.SheetNames.forEach((sheetName) => {
-          const worksheet = workbook.Sheets[sheetName];
-          const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          
-          // Add sheet name
-          result += `[Sheet: ${sheetName}]\n`;
-          
-          // Convert to readable text
-          json.forEach((row: any) => {
-            if (row && row.length) {
-              result += row.join(' | ') + '\n';
-            }
-          });
-          
-          result += '\n';
-        });
-        
-        resolve(result);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    
-    reader.onerror = () => {
-      reject(new Error('Error reading Excel file'));
-    };
-    
-    reader.readAsArrayBuffer(file);
-  });
-};
-
-// Document processing and embedding
-export const detectDocumentType = (filename: string, content: string): DocumentType => {
-  const ext = filename.split('.').pop()?.toLowerCase();
+/**
+ * Adds OpenRouter models to the available models list
+ * @param models List of OpenRouter models to add
+ */
+export function addOpenRouterModels(models: OpenRouterModel[]): void {
+  const convertedModels = convertOpenRouterModels(models);
   
-  if (ext === 'md') return 'markdown';
-  if (ext === 'json') return 'json';
-  if (ext === 'pdf') return 'pdf';
-  if (ext === 'csv') return 'csv';
-  if (ext === 'xlsx' || ext === 'xls') return 'excel';
-  if (ext === 'html' || ext === 'htm') return 'html';
+  // Remove any existing OpenRouter models
+  const filteredModels = AVAILABLE_MODELS.filter(model => !model.id.startsWith('openrouter/'));
   
-  // Check for code snippets
-  if (content.includes('function ') || 
-      content.includes('class ') || 
-      content.includes('def ') || 
-      content.includes('import ') ||
-      content.includes('{') && content.includes('}') ||
-      content.includes('<') && content.includes('>')) {
-    return 'code';
-  }
+  // Add the new models
+  AVAILABLE_MODELS.length = 0;
+  AVAILABLE_MODELS.push(...filteredModels, ...convertedModels);
+}
+
+/**
+ * Mock function to query a language model
+ */
+export async function queryModel(
+  modelId: string,
+  messages: Message[],
+  options?: { temperature?: number }
+): Promise<string> {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
   
-  return 'text';
-};
-
-// Storage for documents
-let documents: Document[] = JSON.parse(localStorage.getItem('documents') || '[]');
-
-// Default embedding model
-let currentEmbeddingModel: EmbeddingModel = EMBEDDING_MODELS[0];
-
-export const setEmbeddingModel = (modelId: string): EmbeddingModel => {
-  const model = EMBEDDING_MODELS.find(m => m.id === modelId);
-  if (model) {
-    currentEmbeddingModel = model;
-    localStorage.setItem('embeddingModel', modelId);
-  }
-  return currentEmbeddingModel;
-};
-
-export const getCurrentEmbeddingModel = (): EmbeddingModel => {
-  const savedModelId = localStorage.getItem('embeddingModel');
-  if (savedModelId) {
-    const model = EMBEDDING_MODELS.find(m => m.id === savedModelId);
-    if (model) {
-      currentEmbeddingModel = model;
-    }
-  }
-  return currentEmbeddingModel;
-};
-
-// RAG functionality
-export const createEmbeddings = async (texts: string[], modelId?: string): Promise<number[][]> => {
-  try {
-    const embeddingModel = modelId || currentEmbeddingModel.id;
-    
-    const embeddingsResults = await Promise.all(
-      texts.map(text => queryModel(embeddingModel, [{ 
-        id: Date.now().toString(),
-        role: 'user', 
-        content: text,
-        timestamp: new Date()
-      }]))
-    );
-    
-    return embeddingsResults as unknown as number[][];
-  } catch (error) {
-    console.error('Error creating embeddings:', error);
-    throw error;
-  }
-};
-
-// Enhanced cosine similarity with options
-export const cosineSimilarity = (a: number[], b: number[]): number => {
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
+  const userMessage = messages.find(m => m.role === 'user')?.content || '';
   
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
+  // Generate a mock response
+  return `This is a simulated response to your query: "${userMessage.substring(0, 30)}${userMessage.length > 30 ? '...' : ''}".\n\nIn a real application, this would be generated by the ${modelId} model.`;
+}
+
+/**
+ * Mock function to search for similar documents
+ */
+export async function searchSimilarDocuments(
+  query: string,
+  options?: { topK?: number; threshold?: number }
+): Promise<DocumentType[]> {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 300));
   
-  normA = Math.sqrt(normA);
-  normB = Math.sqrt(normB);
+  // Return dummy documents
+  return [
+    {
+      id: '1',
+      title: 'Related Document 1',
+      content: `This document is related to "${query.substring(0, 20)}..."`
+    },
+    {
+      id: '2',
+      title: 'Related Document 2',
+      content: `Another document related to "${query.substring(0, 20)}..."`
+    }
+  ];
+}
+
+/**
+ * Mock function to process a document file
+ */
+export async function processDocumentFile(file: File): Promise<{ text: string; type: string }> {
+  // Simulate processing delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
-  return dotProduct / (normA * normB);
-};
-
-// Save documents to localStorage
-const saveDocuments = () => {
-  localStorage.setItem('documents', JSON.stringify(documents));
-};
-
-// Document management
-export const addDocumentToStore = async (
-  title: string, 
-  content: string, 
-  filename: string
-): Promise<Document> => {
-  try {
-    // Check for valid API key first
-    if (!isApiKeyValid()) {
-      throw new Error('Valid API key required for document embedding');
-    }
-    
-    const docType = detectDocumentType(filename, content);
-    
-    // Create text chunks if document is large
-    let processedContent = content;
-    if (content.length > 1000) {
-      // Simple chunking by paragraphs for large documents
-      const chunks = content.split(/\n\s*\n/);
-      processedContent = chunks.join('\n\n'); // Keep it as is for now, chunking handled during retrieval
-    }
-    
-    // Create embedding
-    const embedding = await createEmbeddings([content]);
-    
-    const newDoc: Document = {
-      id: `doc-${Date.now()}`,
-      title,
-      content: processedContent,
-      type: docType,
-      vector: embedding[0],
-      createdAt: new Date()
-    };
-    
-    documents.push(newDoc);
-    saveDocuments();
-    
-    return newDoc;
-  } catch (error) {
-    console.error('Error adding document to store:', error);
-    throw error;
-  }
-};
-
-export const getAllDocuments = (): Document[] => {
-  return documents;
-};
-
-export const deleteDocument = (documentId: string): boolean => {
-  const initialLength = documents.length;
-  documents = documents.filter(doc => doc.id !== documentId);
-  saveDocuments();
-  return documents.length < initialLength;
-};
-
-// Enhanced searchSimilarDocuments with threshold
-export const searchSimilarDocuments = async (
-  query: string, 
-  topK: number = 3,
-  threshold: number = 0.7
-): Promise<{id: string, title: string, content: string, type: DocumentType, similarity: number}[]> => {
-  try {
-    if (documents.length === 0) {
-      return [];
-    }
-    
-    // Get query embedding using the current embedding model
-    const queryEmbedding = await createEmbeddings([query]);
-    
-    // Calculate similarities
-    const similarities = documents.map(doc => ({
-      id: doc.id,
-      title: doc.title,
-      content: doc.content,
-      type: doc.type,
-      similarity: doc.vector ? cosineSimilarity(queryEmbedding[0], doc.vector) : 0
-    }));
-    
-    // Sort by similarity and filter by threshold
-    const topDocs = similarities
-      .filter(doc => doc.similarity >= threshold)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, topK);
-    
-    return topDocs;
-  } catch (error) {
-    console.error('Error searching documents:', error);
-    throw error;
-  }
-};
-
-// Re-embed all documents with a new embedding model
-export const reembedAllDocuments = async (modelId: string): Promise<void> => {
-  try {
-    const model = EMBEDDING_MODELS.find(m => m.id === modelId);
-    if (!model) {
-      throw new Error(`Embedding model ${modelId} not found`);
-    }
-    
-    // Set as current model
-    setEmbeddingModel(modelId);
-    
-    // Re-embed each document
-    for (let i = 0; i < documents.length; i++) {
-      const doc = documents[i];
-      const embedding = await createEmbeddings([doc.content], modelId);
-      documents[i] = {
-        ...doc,
-        vector: embedding[0]
-      };
-    }
-    
-    saveDocuments();
-  } catch (error) {
-    console.error('Error re-embedding documents:', error);
-    throw error;
-  }
-};
+  return {
+    text: `Mock extracted text from ${file.name}. This would be the actual content in a real application.`,
+    type: file.type
+  };
+}

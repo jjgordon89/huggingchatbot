@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -15,14 +14,15 @@ import {
 } from '@/lib/api';
 import { useToast } from "@/hooks/use-toast";
 import { searchWeb, formatSearchResultsAsContext } from '@/lib/webSearchService';
-import { 
-  availableSkills, 
-  detectSkill, 
+import {
+  availableSkills,
+  detectSkill,
   executeSkill,
   Skill
 } from '@/lib/skillsService';
 import { WeatherData } from '@/lib/weatherService';
 import { useWorkspace } from './WorkspaceContext';
+import { RagSystem } from '@/lib/ragSystem';
 
 // Define skill result type
 type SkillResult = {
@@ -55,7 +55,19 @@ export type RagSettings = {
   searchResultsCount: number;
   searchTimeRange: "day" | "week" | "month" | "year";
   autoCitation: boolean;
+  // Advanced RAG settings
+  chunkingStrategy?: 'hybrid' | 'fixed' | 'semantic';
+  retrieverStrategy?: 'hybrid' | 'vector' | 'keyword';
+  rerankerModel?: string;
+  queryRouting?: 'hybrid' | 'direct' | 'decomposed';
+  useQueryExpansion?: boolean;
+  includeMetadata?: boolean;
+  enableQueryDecomposition?: boolean;
+  hybridSearchWeights?: { vector: number; keyword: number };
 };
+
+// API Provider types
+export type ApiProvider = 'hugging face' | 'openai' | 'anthropic' | 'google' | 'ollama' | 'openrouter' | 'custom';
 
 // Define the context type
 type ChatContextType = {
@@ -83,7 +95,10 @@ type ChatContextType = {
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
   clearChats: () => void;
-  setApiKey: (key: string) => boolean;
+  clearAllChats: () => void; // New function to clear all chats across all workspaces
+  setApiKey: (key: string, provider?: ApiProvider) => boolean;
+  getApiKey: (provider: ApiProvider) => string | null;
+  availableApiKeys: Record<string, boolean>; // Track which API providers have keys set
   setActiveModel: (model: HuggingFaceModel) => void;
 };
 
@@ -107,7 +122,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeModel, setActiveModel] = useState<HuggingFaceModel>(AVAILABLE_MODELS[0]);
-  const [isApiKeySet, setIsApiKeySet] = useState<boolean>(!!getApiKey());
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>(() => {
+    // Initialize from localStorage
+    const savedKeys = localStorage.getItem('api_keys');
+    return savedKeys ? JSON.parse(savedKeys) : {};
+  });
+  
+  const [availableApiKeys, setAvailableApiKeys] = useState<Record<string, boolean>>(() => {
+    const savedKeys = localStorage.getItem('api_keys');
+    if (!savedKeys) return {};
+    
+    const keys = JSON.parse(savedKeys);
+    return Object.keys(keys).reduce((acc, provider) => ({
+      ...acc,
+      [provider]: !!keys[provider]
+    }), {});
+  });
+  
+  const isApiKeySet = true; // Default to true since API keys are now optional
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
   const [ragSettings, setRagSettings] = useState<RagSettings>(DEFAULT_RAG_SETTINGS);
@@ -129,7 +161,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (savedChats) {
       try {
-        setChats(JSON.parse(savedChats));
+        // Make sure each chat has a valid workspaceId to prevent orphaned chats
+        const parsedChats = JSON.parse(savedChats);
+        const validChats = parsedChats.filter(chat => chat.workspaceId);
+        setChats(validChats);
       } catch (e) {
         console.error('Failed to parse saved chats:', e);
       }
@@ -172,6 +207,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Update RAG system when settings change
+  useEffect(() => {
+    // Update RAG system with current settings, ensuring types match
+    RagSystem.updateSettings({
+      chunkingStrategy: (ragSettings.chunkingStrategy as "hybrid" | "semantic" | "fixedSize" | "recursive") || 'hybrid',
+      retrieverStrategy: (ragSettings.retrieverStrategy as "hybrid" | "semantic" | "mmr" | "reranking") || 'hybrid',
+      rerankerModel: (ragSettings.rerankerModel as "reciprocal-rank-fusion" | "none" | "simple" | "cross-attention") || 'reciprocal-rank-fusion',
+      queryRouting: (ragSettings.queryRouting as "hybrid" | "semantic" | "keyword" | "basic") || 'hybrid',
+      topK: ragSettings.topK || 3,
+      similarityThreshold: ragSettings.similarityThreshold || 70,
+      useQueryExpansion: ragSettings.useQueryExpansion !== false,
+      includeMetadata: ragSettings.includeMetadata !== false,
+      enableQueryDecomposition: ragSettings.enableQueryDecomposition === true,
+      hybridSearchWeights: ragSettings.hybridSearchWeights || { vector: 0.7, keyword: 0.3 }
+    });
+  }, [ragSettings]);
+  
   // Effect to save to localStorage when state changes
   useEffect(() => {
     if (chats.length > 0) {
@@ -267,20 +319,54 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveThreadId(null);
   }, []);
 
-  // If no chats exist for the active workspace, start a new one
+  // Initialize chats for workspace
   useEffect(() => {
-    if (isApiKeySet && activeWorkspaceId) {
+    console.log('Checking for chats initialization', { activeWorkspaceId, chatsLength: chats.length });
+    
+    if (activeWorkspaceId) {
+      // Get chats for this workspace
       const workspaceChats = chats.filter(chat => chat.workspaceId === activeWorkspaceId);
+      console.log('Workspace chats:', workspaceChats.length);
       
       if (workspaceChats.length === 0) {
-        startNewChat();
+        console.log('No chats for workspace, creating new chat');
+        // Create a system message
+        const systemMessage: ThreadedMessage = {
+          id: uuidv4(),
+          role: 'system',
+          content: 'You are a helpful, friendly, and knowledgeable AI assistant. Answer questions accurately and helpfully.',
+          timestamp: new Date(),
+          workspaceId: activeWorkspaceId
+        };
+        
+        // Create a new chat
+        const newChatId = uuidv4();
+        const newChat: Chat = {
+          id: newChatId,
+          title: 'New Chat',
+          messages: [systemMessage],
+          workspaceId: activeWorkspaceId
+        };
+        
+        // Add the new chat
+        setChats(prev => [...prev, newChat]);
+        setActiveChatId(newChatId);
+        setActiveThreadId(null);
+        
+        // Force save to localStorage
+        localStorage.setItem('chats', JSON.stringify([...chats, newChat]));
+        localStorage.setItem('activeChatId', newChatId);
+        
+        console.log('Created new chat:', newChatId);
       } else if (!activeChatId || !workspaceChats.some(chat => chat.id === activeChatId)) {
-        // If active chat doesn't exist in this workspace, set to first available
+        // If no active chat or active chat not in this workspace, set to first available
+        console.log('Setting active chat to first available in workspace');
         setActiveChatId(workspaceChats[0].id);
         setActiveThreadId(null);
+        localStorage.setItem('activeChatId', workspaceChats[0].id);
       }
     }
-  }, [chats, activeChatId, startNewChat, isApiKeySet, activeWorkspaceId]);
+  }, [chats, activeChatId, activeWorkspaceId]);
 
   // Switch to a different chat
   const switchChat = useCallback((chatId: string) => {
@@ -336,22 +422,106 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startNewChat();
   }, [activeWorkspaceId, startNewChat]);
 
-  // Set the API key
-  const updateApiKey = useCallback((key: string) => {
+  // Clear all chats across all workspaces
+  const clearAllChats = useCallback(() => {
+    // Remove all chats from state
+    setChats([]);
+    
+    // Remove chats from localStorage
+    localStorage.removeItem('chats');
+    localStorage.removeItem('activeChatId');
+    localStorage.removeItem('activeThreadId');
+    
+    // Reset state
+    setActiveChatId(null);
+    setActiveThreadId(null);
+    
+    toast({
+      title: "All Chats Cleared",
+      description: "All conversations have been removed from all workspaces"
+    });
+    
+    // Force localStorage update by setting chats to empty array
+    localStorage.setItem('chats', JSON.stringify([]));
+    
+    // Only create a new chat if there's an active workspace
+    if (activeWorkspaceId) {
+      startNewChat();
+    }
+  }, [activeWorkspaceId, startNewChat, toast]);
+
+  // Get API key for a specific provider
+  const getApiKey = useCallback((provider: ApiProvider): string | null => {
+    return apiKeys[provider.toLowerCase()] || null;
+  }, [apiKeys]);
+
+  // Set API key for a specific provider
+  const setApiKey = useCallback((key: string, provider: ApiProvider = 'hugging face') => {
     try {
-      setApiKey(key);
-      setIsApiKeySet(!!key);
+      const normalizedProvider = provider.toLowerCase();
       
-      if (!!key && activeWorkspaceId && !chats.some(chat => chat.workspaceId === activeWorkspaceId)) {
-        startNewChat();
+      if (key) {
+        // Save the API key
+        setApiKeys(prev => ({
+          ...prev,
+          [normalizedProvider]: key
+        }));
+        
+        // Update available keys
+        setAvailableApiKeys(prev => ({
+          ...prev,
+          [normalizedProvider]: true
+        }));
+        
+        // Save to localStorage
+        const updatedKeys = {
+          ...apiKeys,
+          [normalizedProvider]: key
+        };
+        localStorage.setItem('api_keys', JSON.stringify(updatedKeys));
+        
+        // If it's the Hugging Face key, also update the legacy storage
+        if (normalizedProvider === 'hugging face') {
+          setApiKey(key);
+        }
+        
+        toast({
+          title: "API Key Saved",
+          description: `${provider} API key has been saved successfully`
+        });
+      } else {
+        // Remove the API key
+        const { [normalizedProvider]: removed, ...remainingKeys } = apiKeys;
+        setApiKeys(remainingKeys);
+        
+        setAvailableApiKeys(prev => ({
+          ...prev,
+          [normalizedProvider]: false
+        }));
+        
+        localStorage.setItem('api_keys', JSON.stringify(remainingKeys));
+        
+        if (normalizedProvider === 'hugging face') {
+          localStorage.removeItem('hf_api_key');
+        }
+        
+        toast({
+          title: "API Key Removed",
+          description: `${provider} API key has been removed`
+        });
       }
       
       return true;
     } catch (error) {
       console.error('Error setting API key:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save API key",
+        variant: "destructive"
+      });
       return false;
     }
-  }, [chats, startNewChat, activeWorkspaceId]);
+  }, [apiKeys, toast]);
 
   // Update the model
   const updateActiveModel = useCallback((model: HuggingFaceModel) => {
@@ -386,8 +556,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (chat.title === 'New Chat' && !activeThreadId && chat.messages.length === 1) {
               // If first user message in main chat, use it as title
-              updatedChat.title = content.length > 30 
-                ? content.substring(0, 30) + '...' 
+              updatedChat.title = content.length > 30
+                ? content.substring(0, 30) + '...'
                 : content;
             }
             
@@ -398,184 +568,128 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       setIsLoading(true);
-
-      // Check if query matches any skill
-      let skillResult: any = null;
-      let skillUsed: Skill | null = null;
       
-      if (skillsEnabled) {
-        skillUsed = detectSkill(content, availableSkills);
-        
-        if (skillUsed) {
-          try {
-            console.log(`Using skill: ${skillUsed.name} for query: ${content}`);
-            skillResult = await executeSkill(skillUsed, content);
-            console.log('Skill result:', skillResult);
-          } catch (error) {
-            console.error(`Error executing skill ${skillUsed.name}:`, error);
-            // Continue with regular AI response if skill fails
-            skillUsed = null;
-          }
-        }
-      }
-      
-      // If RAG is enabled, search for similar documents
-      let context: any = undefined;
-      let sources: string[] = [];
-      
+      // Enhanced context from RAG if enabled
+      let ragContext = '';
+      let ragCitations = '';
       if (ragEnabled) {
         try {
-          const similarDocs = await searchSimilarDocuments(
-            content, 
-            ragSettings.topK,
-            ragSettings.similarityThreshold / 100 // Convert to decimal
-          );
+          console.log('Using RAG system for query:', content);
+          const ragResults = await RagSystem.query(content, {
+            useAdvancedFeatures: true,
+            topK: ragSettings.topK,
+            similarityThreshold: ragSettings.similarityThreshold
+          });
           
-          if (similarDocs.length > 0) {
-            // Get the current embedding model info
-            const embeddingModel = getCurrentEmbeddingModel();
-            
-            // Format the context with document information
-            let formattedDocuments = [];
-            
-            for (const doc of similarDocs) {
-              let docContent = doc.content;
+          // Store the enhanced context and citations
+          ragContext = ragResults.context || '';
+          ragCitations = ragResults.citations || '';
+          
+          console.log(`Retrieved ${ragResults.results.length} documents with RAG`);
+          
+          if (ragResults.expandedQuery) {
+            console.log(`Query expanded to: ${ragResults.expandedQuery}`);
+          }
+        } catch (error) {
+          console.error('Error using RAG system:', error);
+        }
+      }
+      
+      // Simple mock AI response if no API key is set
+      const mockResponse = (query: string): string => {
+        const responses = [
+          `I'd be happy to help with "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}", but I'm currently running in demo mode without an API key. My responses are pre-written until you configure a Hugging Face API key.`,
+          `That's an interesting question about "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}". In demo mode, I can't provide a real-time answer, but you can see my UI and interaction capabilities.`,
+          `I understand you're asking about "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}". To get actual AI responses, you would need to configure the application with your Hugging Face API key.`,
+          `Thanks for your question! This is a simulated response in demo mode. To see my full capabilities, you would need to add your Hugging Face API key in the settings.`,
+          `I'm currently in demo mode, showing the application's UI and interaction flow. For real AI responses to questions like "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}", configure your API key.`
+        ];
+        
+        // Select a response based on the hash of the query
+        const hash = query.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return responses[hash % responses.length];
+      };
+      
+      // Simulate a delay for the response
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Use real API if provider-specific key exists, otherwise use mock
+      let assistantContent = '';
+      const hasHfApiKey = !!getApiKey('hugging face');
+      const providerKey = activeModel.id.split('/')[0].toLowerCase();
+      const hasModelProviderKey = !!getApiKey(providerKey as ApiProvider);
+      
+      if (hasHfApiKey || hasModelProviderKey) {
+        // Try to use real API if key exists
+        try {
+          // Use the existing AI query logic
+          const currentChat = chats.find(chat => chat.id === activeChatId && chat.workspaceId === activeWorkspaceId);
+          if (!currentChat) throw new Error('Chat not found');
+          
+          // Filter messages to get relevant context for the thread
+          const contextMessages = currentChat.messages.filter(msg => {
+            if (activeThreadId) {
+              return msg.threadId === activeThreadId || msg.id === activeThreadId;
+            }
+            return !msg.threadId;
+          });
+          
+          // Prepare web search data if enabled (without requiring Brave API key)
+          let webSearchResults = '';
+          if (webSearchEnabled) {
+            try {
+              // Search the web without requiring a specific API provider
+              const searchResults = await searchWeb(content, ragSettings.searchResultsCount);
+              webSearchResults = formatSearchResultsAsContext(searchResults);
+            } catch (error) {
+              console.error('Web search error:', error);
+              // If search fails, provide a friendly message instead of failing
+              webSearchResults = "Web search attempted but no results were found or available.";
+            }
+          }
+          
+          // Add RAG context to system message if available
+          const messagesWithContext = contextMessages.map(msg => {
+            if (msg.role === 'system') {
+              let enhancedSystemPrompt = msg.content;
               
-              // Apply enhanced context formatting if enabled
-              if (ragSettings.enhancedContext) {
-                // Add structured formatting based on document type
-                if (doc.type === 'pdf') {
-                  // Add page markers and structure for PDFs
-                  docContent = docContent.replace(/\[Page (\d+)\]/g, '### Page $1\n');
-                } else if (doc.type === 'markdown') {
-                  // Keep markdown structure
-                  docContent = docContent;
-                } else if (doc.type === 'csv' || doc.type === 'excel') {
-                  // Format tabular data
-                  docContent = `Table data from ${doc.title}:\n${docContent}`;
-                } else if (doc.type === 'code') {
-                  // Format code with appropriate markers
-                  docContent = `\`\`\`\n${docContent}\n\`\`\``;
-                }
+              if (ragEnabled && ragContext) {
+                enhancedSystemPrompt += `\n\nRelevant Document Context:\n${ragContext}`;
               }
               
-              // Add document type information to help the AI understand the content
-              let docInfo = `[${doc.type.toUpperCase()}] ${doc.title}\n\n`;
-              formattedDocuments.push(docInfo + docContent);
+              if (webSearchEnabled && webSearchResults) {
+                enhancedSystemPrompt += `\n\nWeb Search Results:\n${webSearchResults}`;
+              }
               
-              // Create source citation with similarity score
-              sources.push(`${doc.title} (${doc.type}, similarity: ${(doc.similarity * 100).toFixed(1)}%)`);
+              return {
+                ...msg,
+                content: enhancedSystemPrompt
+              };
             }
-            
-            context = {
-              documents: formattedDocuments,
-              sources: sources
-            };
-            
-            console.log('RAG context:', context);
-          }
-        } catch (error) {
-          console.error('Error in RAG processing:', error);
-          // Continue without RAG if it fails
-        }
-      }
-      
-      // If web search is enabled, search the web
-      if (webSearchEnabled) {
-        try {
-          console.log('Performing web search for:', content);
-          const searchResponse = await searchWeb(content, {
-            count: ragSettings.searchResultsCount,
-            timeRange: ragSettings.searchTimeRange
+            return msg;
           });
           
-          if (searchResponse.results.length > 0) {
-            // Format search results as context
-            const searchContext = formatSearchResultsAsContext(searchResponse.results, {
-              includeCitations: ragSettings.autoCitation
-            });
-            
-            // Add search context to existing context
-            if (context) {
-              context.documents = [
-                ...(context.documents || []),
-                searchContext
-              ];
-              
-              // Add search results as sources
-              context.sources = [
-                ...(context.sources || []),
-                ...searchResponse.results.map(result => `Web: ${result.title} (${result.source})`)
-              ];
-              
-              sources = context.sources;
-            } else {
-              context = {
-                documents: [searchContext],
-                sources: searchResponse.results.map(result => `Web: ${result.title} (${result.source})`)
-              };
-              
-              sources = context.sources;
-            }
-            
-            console.log('Web search context:', searchContext);
+          // Add the user message to the enhanced context messages
+          const finalMessages = [...messagesWithContext, userMessage];
+          
+          // Call the model with enhanced context
+          assistantContent = await queryModel(
+            activeModel.id,
+            finalMessages,
+            undefined
+          );
+          
+          // Add citations if enabled
+          if (ragEnabled && ragSettings.autoCitation && ragCitations) {
+            assistantContent += `\n\n${ragCitations}`;
           }
         } catch (error) {
-          console.error('Error in web search processing:', error);
-          toast({
-            title: "Web Search Failed",
-            description: "Couldn't retrieve search results, but continuing with AI response",
-            variant: "destructive"
-          });
-          // Continue without web search if it fails
-        }
-      }
-      
-
-      // Get the updated messages after adding user message
-      const currentChat = chats.find(chat => chat.id === activeChatId && chat.workspaceId === activeWorkspaceId);
-      if (!currentChat) throw new Error('Chat not found');
-      
-      // Filter messages to get relevant context for the thread
-      const contextMessages = currentChat.messages.filter(msg => {
-        if (activeThreadId) {
-          return msg.threadId === activeThreadId || msg.id === activeThreadId;
-        }
-        return !msg.threadId;
-      });
-      
-      const updatedMessages = [...contextMessages, userMessage];
-
-      let assistantContent = '';
-      
-      // Handle skill response if applicable
-      if (skillUsed && skillResult) {
-        // For skills like weather, create a tailored response
-        if (skillUsed.id === 'weather') {
-          const weatherData = skillResult as WeatherData;
-          assistantContent = `Here's the current weather for ${weatherData.location}:\n\n` +
-            `🌡️ Temperature: ${weatherData.temperature}°C\n` +
-            `☁️ Conditions: ${weatherData.condition}\n` +
-            `💧 Humidity: ${weatherData.humidity}%\n` +
-            `🌬️ Wind: ${weatherData.windSpeed} m/s`;
-            
-          if (weatherData.forecast) {
-            assistantContent += "\n\n**5-Day Forecast:**\n";
-            weatherData.forecast.forEach(day => {
-              assistantContent += `- ${day.date}: ${day.condition}, ${day.temperature.min}°C to ${day.temperature.max}°C\n`;
-            });
-          }
-        } else {
-          // Generic skill response format
-          assistantContent = `I've found this information for you:\n\n${JSON.stringify(skillResult, null, 2)}`;
+          console.error('Error querying model, falling back to mock:', error);
+          assistantContent = mockResponse(content);
         }
       } else {
-        // Normal AI query without skill
-        assistantContent = await queryModel(
-          activeModel.id,
-          updatedMessages,
-          context
-        );
+        // Mock response if no API key
+        assistantContent = mockResponse(content);
       }
       
       // Create assistant message
@@ -584,13 +698,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'assistant',
         content: assistantContent,
         timestamp: new Date(),
-        sources: sources.length > 0 ? sources : undefined,
         threadId: userMessage.threadId,
         parentId: userMessage.id,
-        skillResult: skillUsed && skillResult ? {
-          skillId: skillUsed.id,
-          data: skillResult
-        } : undefined,
         workspaceId: activeWorkspaceId
       };
       
@@ -629,7 +738,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, activeThreadId, activeWorkspaceId, chats, activeModel.id, toast, ragEnabled, webSearchEnabled, ragSettings, skillsEnabled]);
+  }, [activeChatId, activeThreadId, activeWorkspaceId, chats, activeModel.id, toast]);
+
+  // Effect to save API keys to localStorage when they change
+  useEffect(() => {
+    if (Object.keys(apiKeys).length > 0) {
+      localStorage.setItem('api_keys', JSON.stringify(apiKeys));
+    }
+  }, [apiKeys]);
 
   const value = {
     messages,
@@ -645,7 +761,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ragSettings,
     skillsEnabled,
     setSkillsEnabled,
-    availableSkills,
+    availableSkills: availableSkills || [],
     setRagEnabled,
     setWebSearchEnabled,
     updateRagSettings,
@@ -656,7 +772,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     switchChat,
     deleteChat,
     clearChats,
-    setApiKey: updateApiKey,
+    clearAllChats,
+    setApiKey: setApiKey,
+    getApiKey,
+    availableApiKeys,
     setActiveModel: updateActiveModel
   };
 

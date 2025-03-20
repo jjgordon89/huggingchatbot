@@ -1,11 +1,27 @@
-
 import { Button } from "@/components/ui/button";
+import { useChat } from "@/context/ChatContext";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Cpu,
+  Plus,
+  Settings,
+  Zap,
+  Menu,
+  Search,
+  BrainCircuit,
+  Upload,
+  Database,
+  FileText,
+  Command,
+  Workflow
+} from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
+import { Link } from "react-router-dom";
+import { WorkspaceSelector } from "./WorkspaceSelector";
+import { ModelSelector } from "./ModelSelector";
+import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,260 +30,146 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { ApiKeyForm } from "./ApiKeyForm";
-import { BraveApiKeyForm } from "./BraveApiKeyForm";
-import { AdvancedRagSettings } from "./AdvancedRagSettings";
-import { AgentSkills } from "./AgentSkills";
-import { PlusCircle, Settings, Database, Search, Zap, BookOpen, Sliders } from "lucide-react";
-import { useState } from "react";
-import { useChat } from "@/context/ChatContext";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { isBraveApiKeySet } from "@/lib/webSearchService";
+import { useToast } from "@/hooks/use-toast";
 
 export function ChatHeader() {
-  const { 
-    startNewChat, 
-    isApiKeySet, 
-    activeModel, 
-    setActiveModel, 
-    availableModels,
-    ragEnabled,
-    setRagEnabled,
-    webSearchEnabled,
-    setWebSearchEnabled
-  } = useChat();
-  const [apiDialogOpen, setApiDialogOpen] = useState(false);
-  const [braveApiDialogOpen, setBraveApiDialogOpen] = useState(false);
-  const [advancedRagDialogOpen, setAdvancedRagDialogOpen] = useState(false);
-  const [skillsDialogOpen, setSkillsDialogOpen] = useState(false);
-  const isMobile = useIsMobile();
-  const isBraveKeySet = isBraveApiKeySet();
+  const { activeModel, ragEnabled, webSearchEnabled } = useChat();
+  const { activeWorkspaceId, workspaces } = useWorkspace();
+  const { toast } = useToast();
+  const [scrolled, setScrolled] = useState(false);
+  const [showAllFeatures, setShowAllFeatures] = useState(false);
   
+  // Track scroll position to apply shadows on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="border-b border-border/30 h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-cyber-dark/95 backdrop-blur supports-[backdrop-filter]:bg-cyber-dark/60">
-      <div className="flex items-center gap-2">
-        <Zap className="h-5 w-5 text-cyber-primary" />
-        <h1 className="text-lg font-semibold text-cyber-primary">ALFRED</h1>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => startNewChat()}
-                aria-label="New Chat"
-                className="hover:bg-cyber-primary/20 hover:text-cyber-primary"
-              >
-                <PlusCircle className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>New Chat</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        
-        {(ragEnabled || webSearchEnabled) && (
-          <Dialog open={advancedRagDialogOpen} onOpenChange={setAdvancedRagDialogOpen}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      aria-label="Knowledge Settings"
-                      className="hover:bg-cyber-primary/20 hover:text-cyber-primary"
-                    >
-                      <Sliders className="h-5 w-5" />
-                    </Button>
-                  </DialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Knowledge Settings</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <DialogContent className="sm:max-w-[500px] bg-cyber-dark border-cyber-primary/30">
-              <DialogHeader>
-                <DialogTitle className="text-cyber-primary">Advanced Knowledge Settings</DialogTitle>
-                <DialogDescription>
-                  Configure how Alfred uses documents and web search to enhance responses.
-                </DialogDescription>
-              </DialogHeader>
-              <AdvancedRagSettings />
-            </DialogContent>
-          </Dialog>
-        )}
-        
-        <DropdownMenu>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    aria-label="Settings"
-                    className="hover:bg-cyber-primary/20 hover:text-cyber-primary"
-                  >
-                    <Settings className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Settings</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+    <header
+      className={cn(
+        "sticky top-0 z-30 w-full backdrop-blur-md transition-all duration-200",
+        scrolled
+          ? "border-b bg-background/90 shadow-sm"
+          : "bg-background/80"
+      )}
+    >
+      <div className="flex h-16 items-center justify-between px-4">
+        {/* Left side - Logo and workspace */}
+        <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyber-primary/20 to-cyber-accent/10 mr-1 flex items-center justify-center border border-cyber-primary/20 group-hover:border-cyber-primary/40 transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(249,115,22,0.3)]">
+              <Zap className="h-5 w-5 text-cyber-primary group-hover:text-cyber-primary/90 transition-all group-hover:scale-110 duration-300" />
+            </div>
+            <div className="flex flex-col">
+              <div className="text-lg font-bold bg-gradient-to-r from-cyber-primary via-orange-400 to-cyber-accent bg-clip-text text-transparent">
+                ALFRED
+              </div>
+            </div>
+          </Link>
           
-          <DropdownMenuContent align="end" className="bg-cyber-dark border-cyber-primary/30">
-            <DropdownMenuLabel className="text-cyber-primary">Settings</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-cyber-primary/20" />
-            
-            <Dialog open={apiDialogOpen} onOpenChange={setApiDialogOpen}>
-              <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary">
-                  Hugging Face API Key
-                </DropdownMenuItem>
-              </DialogTrigger>
-              <DialogContent className="bg-cyber-dark border-cyber-primary/30">
-                <DialogHeader>
-                  <DialogTitle className="text-cyber-primary">Hugging Face API Key</DialogTitle>
-                  <DialogDescription>
-                    Enter your Hugging Face API key to access AI models
-                  </DialogDescription>
-                </DialogHeader>
-                <ApiKeyForm />
-              </DialogContent>
-            </Dialog>
-            
-            <Dialog open={braveApiDialogOpen} onOpenChange={setBraveApiDialogOpen}>
-              <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary">
-                  Brave Search API Key
-                </DropdownMenuItem>
-              </DialogTrigger>
-              <DialogContent className="bg-cyber-dark border-cyber-primary/30">
-                <DialogHeader>
-                  <DialogTitle className="text-cyber-primary">Brave Search API Key</DialogTitle>
-                  <DialogDescription>
-                    Enter your Brave Search API key to enable web search functionality
-                  </DialogDescription>
-                </DialogHeader>
-                <BraveApiKeyForm onClose={() => setBraveApiDialogOpen(false)} />
-              </DialogContent>
-            </Dialog>
-            
-            <Dialog open={skillsDialogOpen} onOpenChange={setSkillsDialogOpen}>
-              <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary">
-                  Agent Skills
-                </DropdownMenuItem>
-              </DialogTrigger>
-              <DialogContent className="bg-cyber-dark border-cyber-primary/30">
-                <DialogHeader>
-                  <DialogTitle className="text-cyber-primary">Agent Skills</DialogTitle>
-                  <DialogDescription>
-                    Explore capabilities of your AI assistant
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <AgentSkills />
+          {activeWorkspaceId && (
+            <>
+              <div className="h-6 mx-1 border-r border-border/50"></div>
+              <WorkspaceSelector />
+            </>
+          )}
+        </div>
+        
+        {/* Right side - Core actions only */}
+        <div className="flex items-center gap-3">
+          {/* Prioritized: Model selection (core feature) */}
+          <div className="flex items-center h-8">
+            <ModelSelector isCompact={true} onlyAvailable={true} />
+          </div>
+          
+          {/* Primary action - New Chat button */}
+          <Button
+            size="sm"
+            className="rounded-full h-8 gap-1.5 bg-gradient-to-r from-cyber-primary to-cyber-accent text-white hover:shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all duration-300"
+            onClick={() => {
+              if (activeWorkspaceId) {
+                document.getElementById('new-chat-button')?.click();
+              }
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">New Chat</span>
+          </Button>
+          
+          {/* Progressive disclosure for additional features */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="rounded-full h-8 w-8">
+                <Menu className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
+              {/* Theme toggle in dropdown to reduce clutter */}
+              <DropdownMenuItem onClick={() => {
+                const themeToggle = document.querySelector('[data-theme-toggle]') as HTMLButtonElement;
+                if (themeToggle) themeToggle.click();
+              }}>
+                <div className="mr-2 h-4 w-4 flex items-center justify-center">
+                  {/* This will be either a sun or moon icon depending on current theme */}
+                  <div className="hidden" data-theme-toggle-container>
+                    <ThemeToggle />
+                  </div>
                 </div>
-              </DialogContent>
-            </Dialog>
-            
-            <DropdownMenuSeparator className="bg-cyber-primary/20" />
-            <DropdownMenuLabel className="text-cyber-primary">Models</DropdownMenuLabel>
-            
-            {availableModels.map(model => (
-              <DropdownMenuItem 
-                key={model.id}
-                onSelect={() => setActiveModel(model)}
-                className="flex items-center justify-between hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
-              >
-                <span>{model.name}</span>
-                {activeModel.id === model.id && (
-                  <span className="h-2 w-2 rounded-full bg-cyber-primary" />
-                )}
+                <span>Toggle Theme</span>
               </DropdownMenuItem>
-            ))}
-            
-            <DropdownMenuSeparator className="bg-cyber-primary/20" />
-            <DropdownMenuLabel className="text-cyber-primary">Knowledge</DropdownMenuLabel>
-            
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                setRagEnabled(!ragEnabled);
-              }}
-              className="flex items-center justify-between hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
-            >
-              <div className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                <span>Use Document Knowledge</span>
-              </div>
-              <Switch 
-                checked={ragEnabled} 
-                onCheckedChange={setRagEnabled} 
-                onClick={(e) => e.stopPropagation()}
-                className="data-[state=checked]:bg-cyber-primary data-[state=checked]:border-cyber-primary"
-              />
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                if (!isBraveKeySet && !webSearchEnabled) {
-                  setBraveApiDialogOpen(true);
-                  return;
-                }
-                setWebSearchEnabled(!webSearchEnabled);
-              }}
-              className="flex items-center justify-between hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
-            >
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                <span>Web Search</span>
-              </div>
-              <Switch 
-                checked={webSearchEnabled} 
-                onCheckedChange={(checked) => {
-                  if (!isBraveKeySet && checked) {
-                    setBraveApiDialogOpen(true);
-                    return;
-                  }
-                  setWebSearchEnabled(checked);
-                }} 
-                onClick={(e) => e.stopPropagation()}
-                disabled={!isBraveKeySet && !webSearchEnabled}
-                className="data-[state=checked]:bg-cyber-primary data-[state=checked]:border-cyber-primary"
-              />
-            </DropdownMenuItem>
-            
-            {(ragEnabled || webSearchEnabled) && (
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setAdvancedRagDialogOpen(true);
-                }}
-                className="hover:bg-cyber-primary/20 hover:text-cyber-primary focus:bg-cyber-primary/20 focus:text-cyber-primary"
-              >
-                <div className="flex items-center gap-2">
-                  <Sliders className="h-4 w-4" />
-                  <span>Advanced Knowledge Settings</span>
-                </div>
+              
+              <DropdownMenuItem onClick={() => toast({
+                title: "Keyboard Shortcuts",
+                description: "⌘+K: Focus search • ⌘+N: New chat • ⌘+S: Save chat",
+              })}>
+                <Command className="mr-2 h-4 w-4" />
+                <span>Keyboard Shortcuts</span>
               </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>AI Features</DropdownMenuLabel>
+              
+              {/* Document-related options grouped */}
+              <DropdownMenuItem onClick={() => {
+                document.getElementById('document-manager-trigger')?.click();
+              }}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Document Manager</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => {
+                const uploadInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                if (uploadInput) uploadInput.click();
+              }}>
+                <Upload className="mr-2 h-4 w-4" />
+                <span>Upload Document</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem asChild>
+                <Link to="/workflow-builder">
+                  <Workflow className="mr-2 h-4 w-4" />
+                  <span>Workflow Builder</span>
+                </Link>
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );

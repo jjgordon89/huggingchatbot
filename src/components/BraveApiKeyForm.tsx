@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +7,28 @@ import { setBraveApiKey, getBraveApiKey } from "@/lib/webSearchService";
 import { useToast } from "@/hooks/use-toast";
 import { InfoIcon } from "lucide-react";
 
-export function BraveApiKeyForm({ onClose }: { onClose?: () => void }) {
+interface BraveApiKeyFormProps {
+  onClose?: () => void;
+  initialApiKey?: string;
+  onSave?: (key: string) => void;
+}
+
+export function BraveApiKeyForm({ 
+  onClose, 
+  initialApiKey, 
+  onSave 
+}: BraveApiKeyFormProps) {
   const { toast } = useToast();
-  const [apiKey, setApiKey] = useState(getBraveApiKey() || "");
+  const [apiKey, setApiKey] = useState(initialApiKey || getBraveApiKey() || "");
   const [isValidating, setIsValidating] = useState(false);
   const [showCorsWarning, setShowCorsWarning] = useState(false);
+
+  // Update apiKey if initialApiKey changes
+  useEffect(() => {
+    if (initialApiKey !== undefined) {
+      setApiKey(initialApiKey);
+    }
+  }, [initialApiKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +50,14 @@ export function BraveApiKeyForm({ onClose }: { onClose?: () => void }) {
       // direct validation with the Brave API might fail due to CORS restrictions.
       // We'll save the key directly and let the user test it by making a search.
       
-      setBraveApiKey(apiKey);
+      // Save to global storage if no custom onSave handler
+      if (!onSave) {
+        setBraveApiKey(apiKey);
+      } else {
+        // Use custom save handler (for workspace-specific settings)
+        onSave(apiKey);
+      }
+      
       toast({
         title: "Success",
         description: "Brave Search API key saved. Try a search to verify it works.",

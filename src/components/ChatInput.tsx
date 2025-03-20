@@ -1,39 +1,46 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/context/ChatContext';
+import { useWorkspace } from '@/context/WorkspaceContext';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { SendHorizontal, Search, MessageCircle, Cpu } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { isBraveApiKeySet } from '@/lib/webSearchService';
-import { isWeatherApiKeySet } from '@/lib/weatherService';
-import { availableSkills } from '@/lib/skillsService';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import {
+  SendHorizontal,
+  UploadCloud,
+  FileUp
+} from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 export function ChatInput() {
   const { 
     sendMessage, 
     isLoading, 
-    isApiKeySet, 
-    ragEnabled, 
-    webSearchEnabled,
-    activeThreadId 
+    isApiKeySet
   } = useChat();
+  
+  const { toast } = useToast();
+  const { activeWorkspaceId, addDocument } = useWorkspace();
+  
   const [input, setInput] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isBraveKeySet = isBraveApiKeySet();
-  const isWeatherKeySet = isWeatherApiKeySet();
-
-  // Count enabled skills
-  const enabledSkillsCount = availableSkills.filter(skill => 
-    skill.enabled && (!skill.requiresApiKey || (skill.isApiKeySet && skill.isApiKeySet()))
-  ).length;
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // File upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  
+  // Character counter
+  const maxChars = 4000;
+  const charCount = input.length;
+  const isAtLimit = charCount >= maxChars;
 
   useEffect(() => {
-    // Auto focus the textarea on component mount
-    if (textareaRef.current) {
-      textareaRef.current.focus();
+    // Auto focus the input on component mount
+    if (inputRef.current) {
+      inputRef.current.focus();
     }
-  }, [activeThreadId]); // Refocus when changing threads
+  }, []); 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,100 +50,189 @@ export function ChatInput() {
     sendMessage(input.trim());
     setInput('');
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e as unknown as React.FormEvent);
+  
+  // File upload handlers
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !activeWorkspaceId) return;
+    
+    setUploading(true);
+    
+    // Simulate file upload and processing
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Update progress
+      setUploadProgress(((i + 1) / files.length) * 100);
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Add document to workspace
+      const docId = Math.random().toString(36).substring(2, 11);
+      addDocument(activeWorkspaceId, {
+        id: docId,
+        name: file.name,
+        path: URL.createObjectURL(file)
+      });
     }
+    
+    // Complete upload process
+    setUploading(false);
+    setUploadProgress(0);
+    
+    // Show success toast
+    toast({
+      title: "Documents Added",
+      description: `Successfully added ${files.length} document(s) to your knowledge base`,
+    });
+  };
+  
+  // Handle input file change
+  const handleInputFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileUpload(event.target.files);
+    // Reset file input
+    event.target.value = '';
+  };
+  
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+  };
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+    
+    const files = e.dataTransfer.files;
+    handleFileUpload(files);
   };
 
-  const isWebSearchReady = webSearchEnabled && isBraveKeySet;
-  const isWebSearchPending = webSearchEnabled && !isBraveKeySet;
-
   return (
-    <div className="p-4 border-t bg-background">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-2 mb-2 justify-center flex-wrap">
-          {activeThreadId && (
-            <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
-              <MessageCircle className="h-3 w-3" />
-              <span>Thread Reply</span>
-            </Badge>
-          )}
-          {ragEnabled && (
-            <Badge variant="outline" className="bg-primary/10">
-              RAG Enabled
-            </Badge>
-          )}
-          {isWebSearchReady && (
-            <Badge variant="outline" className="bg-primary/10 flex items-center gap-1">
-              <Search className="h-3 w-3" />
-              <span>Web Search</span>
-            </Badge>
-          )}
-          {isWebSearchPending && (
-            <Badge variant="outline" className="bg-destructive/10 flex items-center gap-1">
-              <Search className="h-3 w-3" />
-              <span>Web Search (API Key Required)</span>
-            </Badge>
-          )}
-          {enabledSkillsCount > 0 && (
-            <Badge variant="outline" className="bg-cyber-primary/20 flex items-center gap-1">
-              <Cpu className="h-3 w-3" />
-              <span>{enabledSkillsCount} AI Skills</span>
-            </Badge>
-          )}
-        </div>
-        
+    <div
+      className={cn(
+        "fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-sm z-10",
+        isDraggingFile && "ring-1 ring-blue-400"
+      )}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <div className="max-w-3xl mx-auto px-4 py-3">
         <form onSubmit={handleSubmit} className="relative">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              !isApiKeySet
-                ? "Please set your Hugging Face API key in settings"
-                : isLoading
-                ? "Waiting for response..."
-                : activeThreadId
-                ? "Reply to thread..."
-                : isWebSearchReady 
-                ? "Ask anything (web search enabled)..."
-                : isWebSearchPending
-                ? "Set your Brave Search API key in settings"
-                : "Ask me anything or try: 'weather in Tokyo'"
-            }
-            disabled={isLoading || !isApiKeySet}
-            className="resize-none pr-12 min-h-[60px] max-h-40 focus-visible:ring-1 smooth-transition"
-            rows={1}
-          />
+          <div className="relative flex items-center">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e as unknown as React.FormEvent);
+                }
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={
+                !isApiKeySet
+                  ? "Please set your API key in settings..."
+                  : isLoading
+                  ? "Thinking..."
+                  : "Message Alfred AI..."
+              }
+              disabled={isLoading || !isApiKeySet}
+              className={cn(
+                "w-full py-3 px-4 bg-white border border-slate-200 rounded-lg",
+                "text-slate-800 placeholder:text-slate-400 focus:outline-none",
+                "focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              )}
+              maxLength={maxChars}
+            />
+            
+            {/* Upload button */}
+            <div className="absolute right-12">
+              <div className="relative">
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleInputFileChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-8 h-8"
+                  disabled={uploading || isLoading}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  disabled={uploading || isLoading}
+                  className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                >
+                  <FileUp className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Send button */}
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!input.trim() || isLoading || !isApiKeySet || isAtLimit}
+              className="absolute right-2 p-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              {isLoading ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-r-transparent" />
+              ) : (
+                <SendHorizontal className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
           
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || isLoading || !isApiKeySet}
-            className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-full"
-          >
-            <SendHorizontal className="h-4 w-4" />
-          </Button>
-        </form>
-        
-        <p className="text-xs text-center text-muted-foreground mt-2">
-          {!isApiKeySet ? (
-            "Click the settings icon to add your Hugging Face API key"
-          ) : isWebSearchPending ? (
-            "Web search is enabled but requires a Brave Search API key"
-          ) : activeThreadId ? (
-            "Replying in thread - Press Enter to send"
-          ) : enabledSkillsCount > 0 ? (
-            `Ask me anything or try AI skills like "weather in Tokyo"`
-          ) : (
-            "Press Enter to send, Shift+Enter for a new line"
+          {/* File upload progress */}
+          {uploading && (
+            <div className="mt-2 space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="flex justify-between text-sm">
+                <span className="text-sm font-medium flex items-center gap-1.5">
+                  <UploadCloud className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Uploading documents...</span>
+                </span>
+                <span className="text-xs text-slate-500">{Math.round(uploadProgress)}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-1.5" />
+            </div>
           )}
-        </p>
+          
+          {/* Info text */}
+          {!uploading && (
+            <p className="text-xs text-center text-slate-500 mt-2">
+              Press <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono">Enter</kbd> to send
+            </p>
+          )}
+        </form>
       </div>
+      
+      {/* File drop indicator */}
+      {isDraggingFile && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/90 z-50 border-2 border-dashed border-blue-400">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <UploadCloud className="h-10 w-10 text-blue-500" />
+            <p className="text-sm font-medium">Drop files here</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
