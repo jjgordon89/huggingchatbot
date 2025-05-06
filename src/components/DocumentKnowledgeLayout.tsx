@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
 import { useSqlite } from '@/hooks/use-sqlite';
 import { useToast } from '@/hooks/use-toast';
+import { useLangChain } from '@/hooks/use-langchain';
 
 interface DocumentKnowledgeLayoutProps {
   children: React.ReactNode;
@@ -16,16 +17,17 @@ export function DocumentKnowledgeLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(sidebarOpen);
   const { isInitialized, error } = useSqlite();
   const { toast } = useToast();
+  const langchain = useLangChain();
   
   // Listen for sidebar state changes (could come from parent components)
   useEffect(() => {
     setIsSidebarOpen(sidebarOpen);
   }, [sidebarOpen]);
 
-  // Log database status and show error if needed
+  // Log database and LangChain status
   useEffect(() => {
     if (isInitialized) {
-      console.log("Database initialized in DocumentKnowledgeLayout");
+      console.log("Database and LangChain services initialized in DocumentKnowledgeLayout");
     }
     
     if (error) {
