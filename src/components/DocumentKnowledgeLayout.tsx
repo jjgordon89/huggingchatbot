@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
+import { useSqlite } from '@/hooks/use-sqlite';
 
 interface DocumentKnowledgeLayoutProps {
   children: React.ReactNode;
@@ -11,11 +13,19 @@ export function DocumentKnowledgeLayout({
   sidebarOpen = false
 }: DocumentKnowledgeLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(sidebarOpen);
+  const { isInitialized } = useSqlite();
   
   // Listen for sidebar state changes (could come from parent components)
   useEffect(() => {
     setIsSidebarOpen(sidebarOpen);
   }, [sidebarOpen]);
+
+  // Log database status
+  useEffect(() => {
+    if (isInitialized) {
+      console.log("Database initialized in DocumentKnowledgeLayout");
+    }
+  }, [isInitialized]);
 
   return (
     <div className="relative flex min-h-screen w-full">

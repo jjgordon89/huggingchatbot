@@ -1,16 +1,24 @@
 
 import React from 'react';
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
 import { initializeDatabase } from './lib/sqliteService';
+import FallbackPage from './pages/FallbackPage.tsx';
 
-// Initialize SQLite database before rendering the app
-try {
-  initializeDatabase();
-  console.log("SQLite database initialized successfully");
-} catch (error) {
-  console.error("Failed to initialize SQLite database:", error);
-}
+const root = createRoot(document.getElementById("root")!);
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Render loading state first
+root.render(<FallbackPage />);
+
+// Initialize database then render the app
+initializeDatabase()
+  .then(() => {
+    console.log("Database initialized successfully");
+    root.render(<App />);
+  })
+  .catch((error) => {
+    console.error("Failed to initialize database:", error);
+    // Still render the app, it will handle database failure gracefully
+    root.render(<App />);
+  });

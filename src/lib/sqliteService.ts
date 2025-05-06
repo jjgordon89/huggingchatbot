@@ -1,134 +1,122 @@
 
-import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 
-// SQLite database instance
-let db: Database.Database | null = null;
+// Mock database tables using IndexedDB
+let db: IDBDatabase | null = null;
+const DB_NAME = "app_database";
+const DB_VERSION = 1;
+
+// Define store names
+const STORES = {
+  WORKSPACES: "workspaces",
+  DOCUMENTS: "documents",
+  CHAT_MESSAGES: "chat_messages",
+  CHATS: "chats",
+  VECTOR_DOCUMENTS: "vector_documents"
+};
 
 /**
- * Initialize the SQLite database
+ * Initialize the database
  */
-export function initializeDatabase(): void {
-  try {
-    // Use in-memory database for web context
-    db = new Database(':memory:');
-    
-    console.log('SQLite database initialized successfully');
-    createSchema();
-  } catch (error) {
-    console.error('Error initializing SQLite database:', error);
-    throw new Error(`Failed to initialize SQLite database: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+export function initializeDatabase(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      
+      request.onerror = (event) => {
+        console.error('Database error:', (event.target as IDBRequest).error);
+        reject('Failed to initialize database');
+      };
+      
+      request.onsuccess = (event) => {
+        db = (event.target as IDBOpenDBRequest).result;
+        console.log('IndexedDB initialized successfully');
+        resolve();
+      };
+      
+      request.onupgradeneeded = (event) => {
+        const database = (event.target as IDBOpenDBRequest).result;
+        
+        // Create workspaces store
+        if (!database.objectStoreNames.contains(STORES.WORKSPACES)) {
+          const workspacesStore = database.createObjectStore(STORES.WORKSPACES, { keyPath: 'id' });
+          workspacesStore.createIndex('name', 'name', { unique: false });
+          workspacesStore.createIndex('pinned', 'pinned', { unique: false });
+          workspacesStore.createIndex('lastAccessed', 'lastAccessed', { unique: false });
+        }
+        
+        // Create documents store
+        if (!database.objectStoreNames.contains(STORES.DOCUMENTS)) {
+          const documentsStore = database.createObjectStore(STORES.DOCUMENTS, { keyPath: 'id' });
+          documentsStore.createIndex('workspaceId', 'workspaceId', { unique: false });
+          documentsStore.createIndex('name', 'name', { unique: false });
+        }
+        
+        // Create chat messages store
+        if (!database.objectStoreNames.contains(STORES.CHAT_MESSAGES)) {
+          const chatMessagesStore = database.createObjectStore(STORES.CHAT_MESSAGES, { keyPath: 'id' });
+          chatMessagesStore.createIndex('workspaceId', 'workspaceId', { unique: false });
+          chatMessagesStore.createIndex('chatId', 'chatId', { unique: false });
+          chatMessagesStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+        
+        // Create chats store
+        if (!database.objectStoreNames.contains(STORES.CHATS)) {
+          const chatsStore = database.createObjectStore(STORES.CHATS, { keyPath: 'id' });
+          chatsStore.createIndex('workspaceId', 'workspaceId', { unique: false });
+          chatsStore.createIndex('lastMessageAt', 'lastMessageAt', { unique: false });
+        }
+        
+        // Create vector documents store
+        if (!database.objectStoreNames.contains(STORES.VECTOR_DOCUMENTS)) {
+          const vectorDocsStore = database.createObjectStore(STORES.VECTOR_DOCUMENTS, { keyPath: 'id' });
+          vectorDocsStore.createIndex('workspaceId', 'workspaceId', { unique: false });
+          vectorDocsStore.createIndex('type', 'type', { unique: false });
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing IndexedDB:', error);
+      reject('Failed to initialize database');
+    }
+  });
 }
 
 /**
- * Create the database schema for workspaces, documents, and chats
+ * Generic method to run a transaction
  */
-function createSchema(): void {
-  if (!db) {
-    throw new Error('Database not initialized');
-  }
-
-  try {
-    // Create workspaces table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS workspaces (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at TEXT NOT NULL,
-        icon TEXT,
-        color TEXT,
-        llm_config TEXT,
-        agent_config TEXT,
-        tags TEXT,
-        pinned INTEGER DEFAULT 0,
-        last_accessed TEXT
-      )
-    `);
-
-    // Create documents table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS documents (
-        id TEXT PRIMARY KEY,
-        workspace_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL,
-        content TEXT,
-        type TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-      )
-    `);
-
-    // Create chat_messages table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        workspace_id TEXT NOT NULL,
-        chat_id TEXT NOT NULL,
-        content TEXT NOT NULL,
-        role TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-      )
-    `);
+function runTransaction<T>(
+  storeName: string, 
+  mode: IDBTransactionMode, 
+  callback: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error('Database not initialized'));
+      return;
+    }
     
-    // Create chats table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS chats (
-        id TEXT PRIMARY KEY,
-        workspace_id TEXT NOT NULL,
-        title TEXT,
-        created_at TEXT NOT NULL,
-        last_message_at TEXT,
-        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-      )
-    `);
-    
-    // Create vector_documents table for RAG
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS vector_documents (
-        id TEXT PRIMARY KEY,
-        workspace_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        type TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        metadata TEXT,
-        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-      )
-    `);
-
-    console.log('Database schema created successfully');
-  } catch (error) {
-    console.error('Error creating database schema:', error);
-    throw new Error(`Failed to create database schema: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+    try {
+      const transaction = db.transaction(storeName, mode);
+      const store = transaction.objectStore(storeName);
+      
+      const request = callback(store);
+      
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 /**
  * Get all workspaces from the database
  */
-export function getAllWorkspaces(): any[] {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function getAllWorkspaces(): Promise<any[]> {
   try {
-    const stmt = db!.prepare('SELECT * FROM workspaces ORDER BY last_accessed DESC');
-    const rows = stmt.all();
-    
-    // Convert JSON strings back to objects
-    return rows.map((row: any) => ({
-      ...row,
-      tags: row.tags ? JSON.parse(row.tags) : [],
-      llmConfig: row.llm_config ? JSON.parse(row.llm_config) : undefined,
-      agentConfig: row.agent_config ? JSON.parse(row.agent_config) : undefined,
-      createdAt: new Date(row.created_at),
-      lastAccessed: row.last_accessed ? new Date(row.last_accessed) : undefined,
-      pinned: Boolean(row.pinned)
-    }));
+    return await runTransaction<any[]>(STORES.WORKSPACES, 'readonly', (store) => {
+      return store.getAll();
+    });
   } catch (error) {
     console.error('Error fetching workspaces:', error);
     return [];
@@ -138,7 +126,7 @@ export function getAllWorkspaces(): any[] {
 /**
  * Create a new workspace
  */
-export function createWorkspace(workspace: {
+export async function createWorkspace(workspace: {
   name: string;
   description?: string;
   icon?: string;
@@ -147,49 +135,30 @@ export function createWorkspace(workspace: {
   agentConfig?: any;
   tags?: string[];
   pinned?: boolean;
-}): any {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+}): Promise<any> {
   try {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    const stmt = db!.prepare(`
-      INSERT INTO workspaces (
-        id, name, description, created_at, icon, color, 
-        llm_config, agent_config, tags, pinned, last_accessed
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      id,
-      workspace.name,
-      workspace.description || null,
-      now,
-      workspace.icon || null,
-      workspace.color || null,
-      workspace.llmConfig ? JSON.stringify(workspace.llmConfig) : null,
-      workspace.agentConfig ? JSON.stringify(workspace.agentConfig) : null,
-      workspace.tags ? JSON.stringify(workspace.tags) : null,
-      workspace.pinned ? 1 : 0,
-      now
-    );
-    
-    return {
+    const newWorkspace = {
       id,
       name: workspace.name,
-      description: workspace.description,
-      createdAt: new Date(now),
-      lastAccessed: new Date(now),
-      icon: workspace.icon,
-      color: workspace.color,
-      llmConfig: workspace.llmConfig,
-      agentConfig: workspace.agentConfig,
+      description: workspace.description || null,
+      createdAt: now,
+      icon: workspace.icon || null,
+      color: workspace.color || null,
+      llmConfig: workspace.llmConfig || null,
+      agentConfig: workspace.agentConfig || null,
       tags: workspace.tags || [],
-      pinned: Boolean(workspace.pinned)
+      pinned: workspace.pinned || false,
+      lastAccessed: now
     };
+    
+    await runTransaction(STORES.WORKSPACES, 'readwrite', (store) => {
+      return store.add(newWorkspace);
+    });
+    
+    return newWorkspace;
   } catch (error) {
     console.error('Error creating workspace:', error);
     throw new Error(`Failed to create workspace: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -199,67 +168,21 @@ export function createWorkspace(workspace: {
 /**
  * Update an existing workspace
  */
-export function updateWorkspace(id: string, data: Partial<{
-  name: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  llmConfig?: any;
-  agentConfig?: any;
-  tags?: string[];
-  pinned?: boolean;
-}>): boolean {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function updateWorkspace(id: string, data: any): Promise<boolean> {
   try {
-    const now = new Date().toISOString();
-    const updates: string[] = [];
-    const values: any[] = [];
+    const workspace = await getWorkspace(id);
     
-    Object.entries(data).forEach(([key, value]) => {
-      let column: string;
-      let processedValue: any = value;
-      
-      switch (key) {
-        case 'llmConfig':
-          column = 'llm_config';
-          processedValue = value ? JSON.stringify(value) : null;
-          break;
-        case 'agentConfig':
-          column = 'agent_config';
-          processedValue = value ? JSON.stringify(value) : null;
-          break;
-        case 'tags':
-          column = 'tags';
-          processedValue = value ? JSON.stringify(value) : null;
-          break;
-        case 'pinned':
-          column = 'pinned';
-          processedValue = value ? 1 : 0;
-          break;
-        default:
-          column = key.replace(/([A-Z])/g, '_$1').toLowerCase(); // Convert camelCase to snake_case
-      }
-      
-      updates.push(`${column} = ?`);
-      values.push(processedValue);
+    if (!workspace) {
+      return false;
+    }
+    
+    const updateData = { ...workspace, ...data, lastAccessed: new Date().toISOString() };
+    
+    await runTransaction(STORES.WORKSPACES, 'readwrite', (store) => {
+      return store.put(updateData);
     });
     
-    // Always update last_accessed
-    updates.push('last_accessed = ?');
-    values.push(now);
-    
-    // Add id as the last parameter for WHERE clause
-    values.push(id);
-    
-    const stmt = db!.prepare(`
-      UPDATE workspaces SET ${updates.join(', ')} WHERE id = ?
-    `);
-    
-    const result = stmt.run(...values);
-    return result.changes > 0;
+    return true;
   } catch (error) {
     console.error('Error updating workspace:', error);
     return false;
@@ -269,15 +192,13 @@ export function updateWorkspace(id: string, data: Partial<{
 /**
  * Delete a workspace
  */
-export function deleteWorkspace(id: string): boolean {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function deleteWorkspace(id: string): Promise<boolean> {
   try {
-    const stmt = db!.prepare('DELETE FROM workspaces WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+    await runTransaction(STORES.WORKSPACES, 'readwrite', (store) => {
+      return store.delete(id);
+    });
+    
+    return true;
   } catch (error) {
     console.error('Error deleting workspace:', error);
     return false;
@@ -287,26 +208,11 @@ export function deleteWorkspace(id: string): boolean {
 /**
  * Get workspace by ID
  */
-export function getWorkspace(id: string): any | null {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function getWorkspace(id: string): Promise<any | null> {
   try {
-    const stmt = db!.prepare('SELECT * FROM workspaces WHERE id = ?');
-    const row = stmt.get(id);
-    
-    if (!row) return null;
-    
-    return {
-      ...row,
-      tags: row.tags ? JSON.parse(row.tags) : [],
-      llmConfig: row.llm_config ? JSON.parse(row.llm_config) : undefined,
-      agentConfig: row.agent_config ? JSON.parse(row.agent_config) : undefined,
-      createdAt: new Date(row.created_at),
-      lastAccessed: row.last_accessed ? new Date(row.last_accessed) : undefined,
-      pinned: Boolean(row.pinned)
-    };
+    return await runTransaction<any>(STORES.WORKSPACES, 'readonly', (store) => {
+      return store.get(id);
+    });
   } catch (error) {
     console.error('Error fetching workspace:', error);
     return null;
@@ -316,28 +222,30 @@ export function getWorkspace(id: string): any | null {
 /**
  * Add a document to a workspace
  */
-export function addDocument(workspaceId: string, document: { id: string; name: string; path: string; content?: string; type?: string }): boolean {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function addDocument(workspaceId: string, document: { 
+  id?: string; 
+  name: string; 
+  path: string; 
+  content?: string; 
+  type?: string;
+}): Promise<boolean> {
   try {
+    const docId = document.id || uuidv4();
     const now = new Date().toISOString();
     
-    const stmt = db!.prepare(`
-      INSERT INTO documents (id, workspace_id, name, path, content, type, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      document.id,
+    const newDoc = {
+      id: docId,
       workspaceId,
-      document.name,
-      document.path,
-      document.content || null,
-      document.type || null,
-      now
-    );
+      name: document.name,
+      path: document.path,
+      content: document.content || null,
+      type: document.type || null,
+      createdAt: now
+    };
+    
+    await runTransaction(STORES.DOCUMENTS, 'readwrite', (store) => {
+      return store.add(newDoc);
+    });
     
     return true;
   } catch (error) {
@@ -349,14 +257,12 @@ export function addDocument(workspaceId: string, document: { id: string; name: s
 /**
  * List documents in a workspace
  */
-export function listDocuments(workspaceId: string): any[] {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function listDocuments(workspaceId: string): Promise<any[]> {
   try {
-    const stmt = db!.prepare('SELECT id, name, path FROM documents WHERE workspace_id = ?');
-    return stmt.all(workspaceId);
+    return await runTransaction<any[]>(STORES.DOCUMENTS, 'readonly', (store) => {
+      const index = store.index('workspaceId');
+      return index.getAll(workspaceId);
+    });
   } catch (error) {
     console.error('Error listing documents:', error);
     return [];
@@ -366,15 +272,19 @@ export function listDocuments(workspaceId: string): any[] {
 /**
  * Delete a document
  */
-export function deleteDocument(workspaceId: string, documentId: string): boolean {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function deleteDocument(workspaceId: string, documentId: string): Promise<boolean> {
   try {
-    const stmt = db!.prepare('DELETE FROM documents WHERE workspace_id = ? AND id = ?');
-    const result = stmt.run(workspaceId, documentId);
-    return result.changes > 0;
+    const doc = await runTransaction<any>(STORES.DOCUMENTS, 'readonly', (store) => {
+      return store.get(documentId);
+    });
+    
+    if (doc && doc.workspaceId === workspaceId) {
+      await runTransaction(STORES.DOCUMENTS, 'readwrite', (store) => {
+        return store.delete(documentId);
+      });
+      return true;
+    }
+    return false;
   } catch (error) {
     console.error('Error deleting document:', error);
     return false;
@@ -384,21 +294,23 @@ export function deleteDocument(workspaceId: string, documentId: string): boolean
 /**
  * Create a new chat in a workspace
  */
-export function createChat(workspaceId: string, title?: string): string {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function createChat(workspaceId: string, title?: string): Promise<string> {
   try {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    const stmt = db!.prepare(`
-      INSERT INTO chats (id, workspace_id, title, created_at, last_message_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    const newChat = {
+      id,
+      workspaceId,
+      title: title || null,
+      createdAt: now,
+      lastMessageAt: now
+    };
     
-    stmt.run(id, workspaceId, title || null, now, now);
+    await runTransaction(STORES.CHATS, 'readwrite', (store) => {
+      return store.add(newChat);
+    });
+    
     return id;
   } catch (error) {
     console.error('Error creating chat:', error);
@@ -409,30 +321,37 @@ export function createChat(workspaceId: string, title?: string): string {
 /**
  * Get chats for a workspace
  */
-export function getChats(workspaceId: string): any[] {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function getChats(workspaceId: string): Promise<any[]> {
   try {
-    const stmt = db!.prepare(`
-      SELECT c.*, 
-        (SELECT content FROM chat_messages 
-         WHERE chat_id = c.id ORDER BY timestamp DESC LIMIT 1) as last_message
-      FROM chats c
-      WHERE c.workspace_id = ?
-      ORDER BY c.last_message_at DESC
-    `);
+    const chats = await runTransaction<any[]>(STORES.CHATS, 'readonly', (store) => {
+      const index = store.index('workspaceId');
+      return index.getAll(workspaceId);
+    });
     
-    const rows = stmt.all(workspaceId);
+    // Get the last message for each chat
+    const chatsWithLastMessage = await Promise.all(
+      chats.map(async (chat) => {
+        const messages = await runTransaction<any[]>(STORES.CHAT_MESSAGES, 'readonly', (store) => {
+          const index = store.index('chatId');
+          return index.getAll(chat.id);
+        });
+        
+        // Sort messages by timestamp in descending order
+        messages.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        
+        return {
+          ...chat,
+          lastMessage: messages.length > 0 ? messages[0].content : null
+        };
+      })
+    );
     
-    return rows.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      createdAt: new Date(row.created_at),
-      lastMessageAt: row.last_message_at ? new Date(row.last_message_at) : null,
-      lastMessage: row.last_message
-    }));
+    // Sort chats by lastMessageAt in descending order
+    return chatsWithLastMessage.sort((a, b) => 
+      new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+    );
   } catch (error) {
     console.error('Error fetching chats:', error);
     return [];
@@ -442,21 +361,34 @@ export function getChats(workspaceId: string): any[] {
 /**
  * Delete chats for a workspace
  */
-export function deleteChats(workspaceId: string): boolean {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function deleteChats(workspaceId: string): Promise<boolean> {
   try {
-    // First delete all messages
-    const deleteMessagesStmt = db!.prepare('DELETE FROM chat_messages WHERE workspace_id = ?');
-    deleteMessagesStmt.run(workspaceId);
+    // Get all chats for the workspace
+    const chats = await runTransaction<any[]>(STORES.CHATS, 'readonly', (store) => {
+      const index = store.index('workspaceId');
+      return index.getAll(workspaceId);
+    });
     
-    // Then delete all chats
-    const deleteChatsStmt = db!.prepare('DELETE FROM chats WHERE workspace_id = ?');
-    const result = deleteChatsStmt.run(workspaceId);
+    // Delete all messages for each chat
+    for (const chat of chats) {
+      const messages = await runTransaction<any[]>(STORES.CHAT_MESSAGES, 'readonly', (store) => {
+        const index = store.index('chatId');
+        return index.getAll(chat.id);
+      });
+      
+      for (const message of messages) {
+        await runTransaction(STORES.CHAT_MESSAGES, 'readwrite', (store) => {
+          return store.delete(message.id);
+        });
+      }
+      
+      // Delete the chat
+      await runTransaction(STORES.CHATS, 'readwrite', (store) => {
+        return store.delete(chat.id);
+      });
+    }
     
-    return result.changes > 0;
+    return true;
   } catch (error) {
     console.error('Error deleting chats:', error);
     return false;
@@ -466,29 +398,36 @@ export function deleteChats(workspaceId: string): boolean {
 /**
  * Add a message to a chat
  */
-export function addMessage(chatId: string, workspaceId: string, message: { role: string; content: string }): string {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function addMessage(chatId: string, workspaceId: string, message: { role: string; content: string }): Promise<string> {
   try {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    // Add the message
-    const msgStmt = db!.prepare(`
-      INSERT INTO chat_messages (id, chat_id, workspace_id, role, content, timestamp)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    const newMessage = {
+      id,
+      chatId,
+      workspaceId,
+      role: message.role,
+      content: message.content,
+      timestamp: now
+    };
     
-    msgStmt.run(id, chatId, workspaceId, message.role, message.content, now);
+    // Add the message
+    await runTransaction(STORES.CHAT_MESSAGES, 'readwrite', (store) => {
+      return store.add(newMessage);
+    });
     
     // Update the chat's last_message_at
-    const chatStmt = db!.prepare(`
-      UPDATE chats SET last_message_at = ? WHERE id = ?
-    `);
+    const chat = await runTransaction<any>(STORES.CHATS, 'readonly', (store) => {
+      return store.get(chatId);
+    });
     
-    chatStmt.run(now, chatId);
+    if (chat) {
+      chat.lastMessageAt = now;
+      await runTransaction(STORES.CHATS, 'readwrite', (store) => {
+        return store.put(chat);
+      });
+    }
     
     return id;
   } catch (error) {
@@ -500,40 +439,24 @@ export function addMessage(chatId: string, workspaceId: string, message: { role:
 /**
  * Get messages for a chat
  */
-export function getMessages(chatId: string): any[] {
-  if (!db) {
-    initializeDatabase();
-  }
-  
+export async function getMessages(chatId: string): Promise<any[]> {
   try {
-    const stmt = db!.prepare(`
-      SELECT * FROM chat_messages
-      WHERE chat_id = ?
-      ORDER BY timestamp ASC
-    `);
+    const messages = await runTransaction<any[]>(STORES.CHAT_MESSAGES, 'readonly', (store) => {
+      const index = store.index('chatId');
+      return index.getAll(chatId);
+    });
     
-    const rows = stmt.all(chatId);
-    
-    return rows.map((row: any) => ({
-      id: row.id,
-      role: row.role,
-      content: row.content,
-      timestamp: new Date(row.timestamp)
-    }));
+    // Sort messages by timestamp
+    return messages.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
   }
 }
 
-// Initialize the database when this module is loaded
-try {
-  initializeDatabase();
-} catch (error) {
-  console.error('Failed to initialize database on module load:', error);
-}
-
-// Export the SQLite service
+// Export the SQLite service as an object with all the functions
 export const sqliteService = {
   initializeDatabase,
   getAllWorkspaces,
