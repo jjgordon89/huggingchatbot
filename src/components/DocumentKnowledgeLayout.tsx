@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from "@/lib/utils";
 import { useSqlite } from '@/hooks/use-sqlite';
+import { useToast } from '@/hooks/use-toast';
 
 interface DocumentKnowledgeLayoutProps {
   children: React.ReactNode;
@@ -13,19 +14,28 @@ export function DocumentKnowledgeLayout({
   sidebarOpen = false
 }: DocumentKnowledgeLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(sidebarOpen);
-  const { isInitialized } = useSqlite();
+  const { isInitialized, error } = useSqlite();
+  const { toast } = useToast();
   
   // Listen for sidebar state changes (could come from parent components)
   useEffect(() => {
     setIsSidebarOpen(sidebarOpen);
   }, [sidebarOpen]);
 
-  // Log database status
+  // Log database status and show error if needed
   useEffect(() => {
     if (isInitialized) {
       console.log("Database initialized in DocumentKnowledgeLayout");
     }
-  }, [isInitialized]);
+    
+    if (error) {
+      toast({
+        title: "Database Error",
+        description: error,
+        variant: "destructive"
+      });
+    }
+  }, [isInitialized, error, toast]);
 
   return (
     <div className="relative flex min-h-screen w-full">

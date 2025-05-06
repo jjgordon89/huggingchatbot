@@ -2,30 +2,32 @@
 import { useEffect, useState, useCallback } from 'react';
 import sqliteService from '@/lib/sqliteService';
 
-// Custom hook for interacting with SQLite data
+// Custom hook for interacting with IndexedDB data
 export const useSqlite = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize database
+  // Check database initialization status
   useEffect(() => {
-    const initializeDb = async () => {
+    const checkDbStatus = async () => {
       try {
         setIsLoading(true);
-        await sqliteService.initializeDatabase();
+        // We're just checking if the database is ready
+        const workspaces = await sqliteService.getAllWorkspaces();
+        console.log("Database check complete, found workspaces:", workspaces.length);
         setIsInitialized(true);
         setError(null);
       } catch (err) {
-        console.error('Failed to initialize database:', err);
-        setError('Failed to initialize database');
+        console.error('Failed to check database status:', err);
+        setError('Failed to connect to database');
         setIsInitialized(false);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeDb();
+    checkDbStatus();
   }, []);
 
   // Wrap all service methods to handle loading and errors
