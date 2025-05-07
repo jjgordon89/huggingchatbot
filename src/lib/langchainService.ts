@@ -4,6 +4,7 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { Document as LangChainDocument } from 'langchain/document';
+import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 
 // Define interfaces for our service
 export interface LangChainMessage {
@@ -57,27 +58,30 @@ export class LangChainService {
         maxTokens: options.maxTokens,
       });
       
-      // Format messages for the model
+      // Convert to LangChain message format
       const formattedMessages = messages.map((message) => {
-        return {
-          role: message.role,
-          content: message.content,
-        };
+        switch (message.role) {
+          case 'system':
+            return new SystemMessage(message.content);
+          case 'user':
+            return new HumanMessage(message.content);
+          case 'assistant':
+            return new AIMessage(message.content);
+          default:
+            return new HumanMessage(message.content);
+        }
       });
       
-      // If no system message is present, add the default or provided system prompt
-      if (!formattedMessages.some((m) => m.role === 'system')) {
-        formattedMessages.unshift({
-          role: 'system',
-          content: options.systemPrompt || this.defaultSystemPrompt,
-        });
+      // Add default system message if none exists
+      if (!messages.some((m) => m.role === 'system')) {
+        formattedMessages.unshift(new SystemMessage(options.systemPrompt || this.defaultSystemPrompt));
       }
       
       // Invoke the model
       console.log('Generating chat response with LangChain...');
       const response = await model.invoke(formattedMessages);
       
-      return response.content as string;
+      return response.content;
     } catch (error) {
       console.error('LangChain chat generation error:', error);
       throw new Error(`Failed to generate chat response: ${error}`);

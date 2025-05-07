@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+
+import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useUserPreferences } from '@/context/UserPreferencesContext';
@@ -28,38 +29,12 @@ import {
   FilePlus,
   Settings,
   Database,
-  FileType,
-  BookText,
-  FolderOpen,
+  Folder,
   Edit,
-  Folder
+  StickyNote
 } from 'lucide-react';
-import {
-  Sheet,
-  SheetTrigger,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
-import NotesSection from "@/components/NotesSection";
-import { StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { 
-  addDocumentToStore, 
-  getAllDocuments, 
-  deleteDocument, 
-  Document as DocType,
-  EMBEDDING_MODELS,
-  getCurrentEmbeddingModel,
-  setEmbeddingModel,
-  reembedAllDocuments,
-  DocumentType,
-  processDocumentFile,
-  getApiKey
-} from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -70,11 +45,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { WorkspaceSettings } from './WorkspaceSettings';
+import { 
+  addDocumentToStore, 
+  getAllDocuments, 
+  deleteDocument, 
+  Document,
+  DocumentType,
+  EMBEDDING_MODELS,
+  getCurrentEmbeddingModel,
+  setEmbeddingModel,
+  reembedAllDocuments,
+  processDocumentFile,
+  getApiKey
+} from '@/lib/documentStore';
 
 export function ChatSidebar() {
   const { chats, activeChatId, startNewChat, switchChat, deleteChat, clearChats, clearAllChats, ragEnabled, setRagEnabled, activeModel } = useChat();
-  const { trackActivity } = useUserPreferences();
   const {
     workspaces,
     activeWorkspaceId,
@@ -99,7 +85,6 @@ export function ChatSidebar() {
   const [showWorkspaceSettings, setShowWorkspaceSettings] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
-  
   // States for workspace editing
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState('');
@@ -109,7 +94,7 @@ export function ChatSidebar() {
   const [docTitle, setDocTitle] = useState('');
   const [docContent, setDocContent] = useState('');
   const [docFilename, setDocFilename] = useState('');
-  const [documents, setDocuments] = useState<DocType[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [currentEmbeddingModel, setCurrentEmbeddingModel] = useState(getCurrentEmbeddingModel());
   const [isReembedding, setIsReembedding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -331,6 +316,45 @@ export function ChatSidebar() {
     setWorkspaceName(workspace.name);
     setWorkspaceDescription(workspace.description || '');
     setIsEditWorkspaceOpen(true);
+  };
+
+  // Placeholder for Notes component
+  const NotesSection = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+    if (!isOpen) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-background/80 flex items-center justify-center">
+        <div className="bg-card w-11/12 max-w-2xl h-4/5 rounded-lg shadow-lg flex flex-col">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h2 className="text-lg font-medium">Notes</h2>
+            <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+          </div>
+          <div className="flex-1 p-4 overflow-auto">
+            <textarea 
+              className="w-full h-full p-2 border rounded-md" 
+              placeholder="Write your notes here..."
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Simplified WorkspaceSettings placeholder
+  const WorkspaceSettings = ({ onClose }: { onClose: () => void }) => {
+    return (
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-medium">Workspace Settings</h2>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Back
+          </Button>
+        </div>
+        <div className="space-y-4">
+          <p>Workspace settings go here</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -676,7 +700,7 @@ export function ChatSidebar() {
                 }}
                 title="New Chat"
               >
-                <MessageSquare className="h-5 w-5 text-cyber-primary" />
+                <MessageSquare className="h-5 w-5 text-primary" />
               </Button>
             )}
           </div>
@@ -1001,7 +1025,7 @@ export function ChatSidebar() {
           "fixed inset-0 z-30 bg-background",
           sidebarState === 'hidden' && "hidden"
         )}>
-          <WorkspaceSettings onBack={() => setShowWorkspaceSettings(false)} />
+          <WorkspaceSettings onClose={() => setShowWorkspaceSettings(false)} />
         </div>
       )}
     </>
