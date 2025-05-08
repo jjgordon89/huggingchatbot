@@ -5,57 +5,54 @@
 @layer base {
   :root {
     --radius: 0.5rem;
-    --header-height: 5rem;
-
     /* Light mode colors */
-    --background: 220 20% 97%;
-    --foreground: 215 25% 15%;
-
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
-
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
-
-    --primary: 25 95% 53%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
-
-    --secondary: 220 10% 92%;
-    --secondary-foreground: 215 25% 15%;
-
-    --muted: 220 10% 93%;
-    --muted-foreground: 215 25% 40%;
-
-    --accent: 358 76% 57%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
     --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 84% 60%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
-    --border: 220 10% 84%;
-    --input: 220 10% 84%;
-    --ring: 25 95% 53%;
-
+    --border: 214.3 31.6% 91.4%;
+    --input: 214.3 31.6% 91.4%;
+    --ring: 222.2 84% 4.9%;
     /* Glass effect variables */
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(255, 255, 255, 0.2);
     --glass-shadow: rgba(0, 0, 0, 0.05);
-    
+
     /* Neumorphic effect variables */
     --shadow-color-1: rgba(255, 255, 255, 1);
     --shadow-color-2: rgba(0, 0, 0, 0.1);
+
+    --header-height: 5rem;
   }
 
+  /* Default Density */
+  --spacing-unit: 1rem;
+  --padding-sm: calc(var(--spacing-unit) * 0.5);
+  --padding-md: var(--spacing-unit);
+  --padding-lg: calc(var(--spacing-unit) * 1.5);
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+
   .dark {
+    /* Dark Theme */
     --background: 220 10% 8%;
     --foreground: 210 40% 98%;
-
     --card: 220 10% 10%;
     --card-foreground: 210 40% 98%;
-
     --popover: 220 10% 12%;
     --popover-foreground: 210 40% 98%;
-
     --primary: 25 95% 53%;
     --primary-foreground: 210 40% 98%;
 
@@ -65,23 +62,34 @@
     --muted: 220 10% 15%;
     --muted-foreground: 210 15% 65%;
 
-    --accent: 358 76% 57%;
+ --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84% 60%;
+ --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 10% 20%;
-    --input: 220 10% 20%;
-    --ring: 25 95% 53%;
-
+ --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
     /* Glass effect variables for dark mode */
     --glass-bg: rgba(30, 30, 30, 0.7);
     --glass-border: rgba(50, 50, 50, 0.3);
     --glass-shadow: rgba(0, 0, 0, 0.2);
-    
+
     /* Neumorphic effect variables for dark mode */
     --shadow-color-1: rgba(40, 40, 40, 1);
+  }
+
+  .density-compact {
+    --spacing-unit: 0.75rem;
+    --font-size-sm: 0.8125rem; /* Slightly smaller */
+    --font-size-base: 0.9375rem; /* Slightly smaller */
+  }
+
+  .density-comfortable {
+    --spacing-unit: 1.25rem;
+    --font-size-sm: 0.9375rem; /* Slightly larger */
+    --font-size-base: 1.0625rem; /* Slightly larger */
     --shadow-color-2: rgba(0, 0, 0, 0.5);
   }
 

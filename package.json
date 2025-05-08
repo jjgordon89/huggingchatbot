@@ -51,6 +51,7 @@
     "embla-carousel-react": "^8.3.0",
     "framer-motion": "^12.5.0",
     "input-otp": "^1.2.4",
+    "jsx": "^0.9.89",
     "lancedb": "^0.0.1",
     "langchain": "^0.0.208",
     "lucide-react": "^0.462.0",
