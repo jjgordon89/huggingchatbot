@@ -1,4 +1,4 @@
-typescriptreact
+
 import React from 'react';
 import {
   AlertDialog,
@@ -11,13 +11,39 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useTheme } from '@/context/ThemeContext';
+import { useDensity } from '@/context/DensityContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface ResetSettingsDialogProps {
-  onConfirm: () => void;
+  onConfirm?: () => void;
   children: React.ReactNode;
 }
 
 const ResetSettingsDialog: React.FC<ResetSettingsDialogProps> = ({ onConfirm, children }) => {
+  const { setTheme } = useTheme();
+  const { setDensity } = useDensity();
+  const { toast } = useToast();
+  
+  const handleReset = () => {
+    // Reset theme to system
+    setTheme('system');
+    
+    // Reset density to default
+    setDensity('default');
+    
+    // Show confirmation toast
+    toast({
+      title: "Settings Reset",
+      description: "Your application settings have been reset to their defaults.",
+    });
+    
+    // Call the onConfirm callback if provided
+    if (onConfirm) {
+      onConfirm();
+    }
+  };
+  
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -32,7 +58,7 @@ const ResetSettingsDialog: React.FC<ResetSettingsDialogProps> = ({ onConfirm, ch
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Continue</AlertDialogAction>
+          <AlertDialogAction onClick={handleReset}>Continue</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

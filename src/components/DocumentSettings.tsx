@@ -453,8 +453,8 @@ export const DocumentSettings: React.FC<DocumentSettingsProps> = ({ workspaceId 
               <div className="grid gap-2">
                 <Label>Embedding Model</Label>
                 <EmbeddingModelSelector
-                  selectedModel={settings.vectorization.embeddingModel}
-                  onSelectModel={(model) => updateSetting('vectorization', 'embeddingModel', model)}
+                  defaultModelId={embeddingModel ? embeddingModel.id : undefined}
+                  onChange={(modelId) => handleSelectModel({ id: modelId })}
                 />
               </div>
               

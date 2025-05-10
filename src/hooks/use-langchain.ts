@@ -2,12 +2,13 @@
 import { useState } from 'react';
 import langchainService, { LangChainMessage, LangChainChatOptions } from '@/lib/langchainService';
 import { useToast } from '@/hooks/use-toast';
+import { Document, DocumentSource } from '@/types/models';
 
 interface UseLangChainReturn {
   isGenerating: boolean;
   generateChatResponse: (messages: LangChainMessage[], options?: LangChainChatOptions) => Promise<string>;
   generateWithPromptTemplate: (template: string, input: Record<string, any>) => Promise<string>;
-  generateRagResponse: (query: string, documents: { content: string; metadata?: Record<string, any> }[]) => Promise<string>;
+  generateRagResponse: (query: string, documents: Document[]) => Promise<string>;
   error: Error | null;
 }
 
@@ -66,13 +67,22 @@ export function useLangChain(): UseLangChainReturn {
 
   const generateRagResponse = async (
     query: string,
-    documents: { content: string; metadata?: Record<string, any> }[]
+    documents: Document[]
   ): Promise<string> => {
     setIsGenerating(true);
     setError(null);
     
     try {
-      const response = await langchainService.generateRagResponse(query, documents);
+      const docsForRag = documents.map(doc => ({
+        content: doc.content,
+        metadata: {
+          title: doc.title,
+          type: doc.type,
+          filename: doc.filename
+        }
+      }));
+      
+      const response = await langchainService.generateRagResponse(query, docsForRag);
       return response;
     } catch (err) {
       const error = err as Error;

@@ -7,6 +7,8 @@ import { initializeDatabase } from './lib/sqliteService';
 import FallbackPage from './pages/FallbackPage.tsx';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { DensityProvider } from './context/DensityContext';
 
 const root = createRoot(document.getElementById("root")!);
 
@@ -20,7 +22,11 @@ initializeDatabase()
     root.render(
       <AuthProvider>
         <AppSettingsProvider>
-          <App />
+          <ThemeProvider>
+            <DensityProvider>
+              <App />
+            </DensityProvider>
+          </ThemeProvider>
         </AppSettingsProvider>
       </AuthProvider>
     );
@@ -31,7 +37,11 @@ initializeDatabase()
     root.render(
       <AuthProvider>
         <AppSettingsProvider>
-          <App />
+          <ThemeProvider>
+            <DensityProvider>
+              <App />
+            </DensityProvider>
+          </ThemeProvider>
         </AppSettingsProvider>
       </AuthProvider>
     );
