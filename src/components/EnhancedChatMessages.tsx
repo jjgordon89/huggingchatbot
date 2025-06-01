@@ -127,8 +127,8 @@ export function EnhancedChatMessages() {
     return {
       ...message,
       isParentMessage,
-      // Add mock sources property for compatibility
-      sources: message.sources || [],
+      // Ensure sources property exists for compatibility with RagSources component
+      sources: (message as any).sources || [],
       // Add status indicators - these would normally come from a real system
       deliveryStatus: {
         isDelivered: true,
@@ -343,7 +343,7 @@ export function EnhancedChatMessages() {
                     {!activeThreadId && message.role === 'user' && (
                       <div className="mt-2">
                         <ThreadIndicator
-                          hasThread={!!message.hasThread}
+                          hasThread={!!(message as any).hasThread}
                           onClick={() => startThread(message.id)}
                         />
                       </div>
