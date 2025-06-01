@@ -36,7 +36,7 @@ import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import ResetSettingsDialog from '@/components/ResetSettingsDialog';
 import { useAppSettings } from '@/context/AppSettingsContext';
 import { useAuth } from '@/context/AuthContext';
-import { DummyLogin } from '@/components/DummyLogin';
+import DummyLogin from '@/components/DummyLogin';
 import { DummyRegister } from '@/components/DummyRegister';
 import { DummyEditProfile } from '@/components/DummyEditProfile';
 import VectorDbStats from '@/components/VectorDbStats';
@@ -51,6 +51,15 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const [showLogin, setShowLogin] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
+
+  const handleEditProfileSave = (updatedUser: any) => {
+    // Here you would update the user in your auth context
+    setShowEditProfile(false);
+    toast({
+      title: "Profile Updated",
+      description: "Your profile has been successfully updated.",
+    });
+  };
   
   return (
     <div className="container py-8 max-w-7xl mx-auto">
@@ -97,7 +106,7 @@ export default function Profile() {
           {user ? (
             <div className="space-y-6">
               {showEditProfile ? (
-                <DummyEditProfile user={user} onSave={() => setShowEditProfile(false)} />
+                <DummyEditProfile user={user} onSave={handleEditProfileSave} />
               ) : (
                 <>
                   <Card>

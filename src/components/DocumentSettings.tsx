@@ -156,14 +156,18 @@ export const DocumentSettings: React.FC<DocumentSettingsProps> = ({ workspaceId 
   };
 
   // Update a specific setting
-  const updateSetting = (category, key, value) => {
+  const updateSetting = (category: string, key: string, value: any) => {
     setSettings(prev => ({
       ...prev,
       [category]: {
-        ...prev[category],
+        ...prev[category as keyof typeof prev],
         [key]: value
       }
     }));
+  };
+
+  const handleSelectModel = (model: { id: string }) => {
+    updateSetting('vectorization', 'embeddingModel', model.id);
   };
 
   return (
@@ -453,8 +457,8 @@ export const DocumentSettings: React.FC<DocumentSettingsProps> = ({ workspaceId 
               <div className="grid gap-2">
                 <Label>Embedding Model</Label>
                 <EmbeddingModelSelector
-                  defaultModelId={embeddingModel ? embeddingModel.id : undefined}
-                  onChange={(modelId) => handleSelectModel({ id: modelId })}
+                  defaultModelId={settings.vectorization.embeddingModel}
+                  onChange={handleSelectModel}
                 />
               </div>
               

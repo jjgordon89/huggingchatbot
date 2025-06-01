@@ -1,14 +1,19 @@
-typescriptreact
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { User } from '@/context/AuthContext';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
 
 interface DummyEditProfileProps {
   user: User;
-  onSave: (updatedUser: User) => Promise<void>;
+  onSave: (updatedUser: User) => void;
 }
 
 export const DummyEditProfile: React.FC<DummyEditProfileProps> = ({ user, onSave }) => {
@@ -20,7 +25,7 @@ export const DummyEditProfile: React.FC<DummyEditProfileProps> = ({ user, onSave
     e.preventDefault();
     setIsSaving(true);
     const updatedUser: User = { ...user, name, email };
-    await onSave(updatedUser);
+    onSave(updatedUser);
     setIsSaving(false);
   };
 
@@ -64,3 +69,5 @@ export const DummyEditProfile: React.FC<DummyEditProfileProps> = ({ user, onSave
     </Card>
   );
 };
+
+export default DummyEditProfile;

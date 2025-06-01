@@ -1,3 +1,4 @@
+
 // Model Types for Alfred-Intelligence
 
 export interface Models {
@@ -59,4 +60,42 @@ export interface ModelProviderSettings {
     apiKey?: string;
     defaultModel?: string;
   };
+}
+
+export interface Document {
+  id: string;
+  title: string;
+  content: string;
+  metadata?: Record<string, any>;
+  source?: string;
+  timestamp?: Date;
+  type?: string;
+  size?: number;
+  chunks?: DocumentChunk[];
+}
+
+export interface DocumentChunk {
+  id: string;
+  content: string;
+  metadata?: Record<string, any>;
+  embedding?: number[];
+  score?: number;
+}
+
+export interface DocumentSource {
+  id: string;
+  title: string;
+  url?: string;
+  excerpt: string;
+  score: number;
+  metadata?: Record<string, any>;
+}
+
+export interface HuggingFaceModel {
+  id: string;
+  name: string;
+  description: string;
+  task: string;
+  provider: string;
+  maxTokens: number;
 }
