@@ -16,6 +16,24 @@ export interface EmbeddingModel {
 }
 
 /**
+ * Document interface - exported for use in other modules
+ */
+export interface Document {
+  id: string;
+  name: string;
+  title?: string;
+  type: string;
+  size: number;
+  uploadedAt: Date;
+  createdAt: Date;
+  content?: string;
+  filename?: string;
+  url?: string;
+  workspaceId?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
  * Available embedding models
  */
 export const EMBEDDING_MODELS: EmbeddingModel[] = [
