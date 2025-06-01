@@ -4,6 +4,7 @@ import { useSqlite } from '@/hooks/use-sqlite';
 import { useWorkspace } from './WorkspaceContext';
 import { useLangChain } from '@/hooks/use-langchain';
 import { useToast } from '@/hooks/use-toast';
+import { HuggingFaceModel } from '@/lib/api';
 
 // Message type definition
 export interface Message {
@@ -13,6 +14,8 @@ export interface Message {
   content: string;
   timestamp: string;
   workspaceId?: string;
+  hasThread?: boolean;
+  sources?: any;
 }
 
 // Chat type definition
@@ -25,6 +28,9 @@ export interface Chat {
   lastMessage?: string;
 }
 
+// API Provider type
+export type ApiProvider = 'hugging face' | 'openai' | 'anthropic' | 'google' | 'openrouter' | 'ollama';
+
 // Context type definition
 interface ChatContextType {
   messages: Message[];
@@ -32,15 +38,25 @@ interface ChatContextType {
   activeChatId: string | null;
   activeThreadId: string | null;
   isLoading: boolean;
-  activeModel: string;
+  activeModel: HuggingFaceModel;
+  availableApiKeys: Record<string, boolean>;
+  ragEnabled: boolean;
+  webSearchEnabled: boolean;
+  isApiKeySet: boolean;
   sendMessage: (content: string) => Promise<void>;
   createNewChat: () => Promise<void>;
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
   startThread: (messageId: string) => void;
   exitThread: () => void;
-  setActiveModel: (model: string) => void;
+  setActiveModel: (model: HuggingFaceModel) => void;
   refreshChats: () => Promise<void>;
+  setApiKey: (key: string, provider?: ApiProvider) => boolean;
+  getApiKey: (provider: ApiProvider) => string | null;
+  startNewChat: () => Promise<void>;
+  clearChats: () => void;
+  clearAllChats: () => void;
+  setRagEnabled: (enabled: boolean) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -51,12 +67,42 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeModel, setActiveModel] = useState('gpt-3.5-turbo');
+  const [activeModel, setActiveModel] = useState<HuggingFaceModel>({
+    id: 'mistralai/Mistral-7B-Instruct-v0.2',
+    name: 'Mistral 7B',
+    description: 'Balanced performance with moderate resource usage',
+    task: 'text-generation',
+    provider: 'Hugging Face',
+    maxTokens: 8192
+  });
+  const [availableApiKeys, setAvailableApiKeys] = useState<Record<string, boolean>>({});
+  const [ragEnabled, setRagEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   const { activeWorkspaceId } = useWorkspace();
   const { createChat, getChats, addMessage, getMessages, isInitialized } = useSqlite();
   const { generateChatResponse } = useLangChain();
   const { toast } = useToast();
+
+  // Load API keys from localStorage on mount
+  useEffect(() => {
+    const loadApiKeys = () => {
+      const providers: ApiProvider[] = ['hugging face', 'openai', 'anthropic', 'google', 'openrouter', 'ollama'];
+      const keys: Record<string, boolean> = {};
+      
+      providers.forEach(provider => {
+        const key = localStorage.getItem(`${provider}_api_key`);
+        keys[provider] = !!key;
+      });
+      
+      setAvailableApiKeys(keys);
+    };
+    
+    loadApiKeys();
+  }, []);
+
+  // Computed property for API key status
+  const isApiKeySet = availableApiKeys['hugging face'] || availableApiKeys['openai'] || availableApiKeys['anthropic'] || availableApiKeys['google'] || availableApiKeys['openrouter'] || availableApiKeys['ollama'];
 
   // Load chats when workspace changes
   useEffect(() => {
@@ -165,7 +211,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Generate AI response
       const aiResponse = await generateChatResponse(langchainMessages, {
-        model: activeModel,
+        model: activeModel.id,
         temperature: 0.7
       });
       
@@ -240,6 +286,34 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  const setApiKey = (key: string, provider: ApiProvider = 'hugging face'): boolean => {
+    try {
+      localStorage.setItem(`${provider}_api_key`, key);
+      setAvailableApiKeys(prev => ({ ...prev, [provider]: true }));
+      return true;
+    } catch (error) {
+      console.error('Failed to save API key:', error);
+      return false;
+    }
+  };
+
+  const getApiKey = (provider: ApiProvider): string | null => {
+    return localStorage.getItem(`${provider}_api_key`);
+  };
+
+  const startNewChat = async () => {
+    await createNewChat();
+  };
+
+  const clearChats = () => {
+    setChats([]);
+    setActiveChatId(null);
+  };
+
+  const clearAllChats = () => {
+    clearChats();
+  };
+
   const value: ChatContextType = {
     messages,
     chats,
@@ -247,6 +321,10 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     activeThreadId,
     isLoading,
     activeModel,
+    availableApiKeys,
+    ragEnabled,
+    webSearchEnabled,
+    isApiKeySet,
     sendMessage,
     createNewChat,
     switchChat,
@@ -254,7 +332,13 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     startThread,
     exitThread,
     setActiveModel,
-    refreshChats
+    refreshChats,
+    setApiKey,
+    getApiKey,
+    startNewChat,
+    clearChats,
+    clearAllChats,
+    setRagEnabled
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

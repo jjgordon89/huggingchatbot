@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/context/ChatContext";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -33,7 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 export function ChatHeader() {
-  const { activeModel, ragEnabled, webSearchEnabled } = useChat();
+  const { activeModel } = useChat();
   const { activeWorkspaceId, workspaces } = useWorkspace();
   const { toast } = useToast();
   const [scrolled, setScrolled] = useState(false);
