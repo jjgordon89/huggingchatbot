@@ -1,4 +1,4 @@
-import { Models } from '@/types/models';
+import { ModelsCollection } from '@/types/models';
 
 // Define model-related types
 export interface ModelInfo {

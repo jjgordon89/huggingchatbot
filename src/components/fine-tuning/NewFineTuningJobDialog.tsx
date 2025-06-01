@@ -133,7 +133,19 @@ export function NewFineTuningJobDialog({
   // Update selected model when base model changes
   useEffect(() => {
     const model = fineTunableModels.find(m => m.id === baseModelId);
-    setSelectedModel(model || null);
+    if (model) {
+      const huggingFaceModel: HuggingFaceModel = {
+        id: model.id,
+        name: model.name,
+        description: model.description,
+        task: 'text-generation',
+        provider: model.provider,
+        maxTokens: model.contextLength || 4096
+      };
+      setSelectedModel(huggingFaceModel);
+    } else {
+      setSelectedModel(null);
+    }
   }, [baseModelId, fineTunableModels]);
   
   // Update document IDs in form when selection changes

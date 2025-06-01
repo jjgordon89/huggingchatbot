@@ -49,7 +49,9 @@ export function OllamaModels() {
       id: `ollama:${model.name}`,
       name: model.name,
       description: `${model.details.family} (${model.details.parameter_size}) - Local Ollama model`,
-      task: 'text-generation'
+      task: 'text-generation',
+      provider: 'Ollama',
+      maxTokens: 4096
     });
   };
 

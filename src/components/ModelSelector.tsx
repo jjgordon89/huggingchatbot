@@ -353,8 +353,10 @@ export function ModelSelector({ className, isCompact = false, onlyAvailable = fa
         id: selectedModel.id,
         name: selectedModel.name,
         description: selectedModel.description,
-        task: 'text-generation'
-      });
+        task: 'text-generation',
+        provider: selectedModel.provider,
+        maxTokens: selectedModel.contextLength || 4096
+      } as HuggingFaceModel);
     }
     setOpen(false);
   };
