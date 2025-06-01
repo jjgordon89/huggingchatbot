@@ -2,7 +2,6 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { RunnableSequence } from '@langchain/core/runnables';
 import { Document as LangChainDocument } from 'langchain/document';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 
@@ -58,28 +57,18 @@ export class LangChainService {
         maxTokens: options.maxTokens,
       });
       
-      // Convert to LangChain message format
-      const formattedMessages = messages.map((message) => {
-        switch (message.role) {
-          case 'system':
-            return new SystemMessage(message.content);
-          case 'user':
-            return new HumanMessage(message.content);
-          case 'assistant':
-            return new AIMessage(message.content);
-          default:
-            return new HumanMessage(message.content);
-        }
-      });
+      // Convert to simple message format compatible with current LangChain version
+      const messageContent = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
       
       // Add default system message if none exists
+      let finalPrompt = messageContent;
       if (!messages.some((m) => m.role === 'system')) {
-        formattedMessages.unshift(new SystemMessage(options.systemPrompt || this.defaultSystemPrompt));
+        finalPrompt = `${options.systemPrompt || this.defaultSystemPrompt}\n\n${messageContent}`;
       }
       
-      // Invoke the model with proper message format
+      // Invoke the model with simple string input
       console.log('Generating chat response with LangChain...');
-      const response = await model.invoke(formattedMessages);
+      const response = await model.invoke(finalPrompt);
       
       return response.content as string;
     } catch (error) {
@@ -96,12 +85,12 @@ export class LangChainService {
       // Create a prompt template
       const prompt = PromptTemplate.fromTemplate(promptTemplate);
       
-      // Create a chain using pipe syntax for better compatibility
-      const chain = prompt.pipe(model).pipe(new StringOutputParser());
+      // Format the prompt manually to avoid pipe compatibility issues
+      const formattedPrompt = await prompt.format(input);
       
-      // Run the chain
-      const result = await chain.invoke(input);
-      return result;
+      // Run the model directly
+      const result = await model.invoke(formattedPrompt);
+      return result.content as string;
     } catch (error) {
       console.error('LangChain prompt chain error:', error);
       throw new Error(`Failed to run prompt chain: ${error}`);
@@ -129,17 +118,17 @@ export class LangChainService {
         .join('\n\n');
       
       // Create RAG prompt template
-      const ragPromptTemplate = PromptTemplate.fromTemplate(`
+      const ragPromptTemplate = `
         You are a helpful AI assistant. Use the following retrieved documents to answer the user's question.
         If you don't know the answer or can't find it in the context, just say so.
         
         Context:
-        {context}
+        ${context}
         
-        User Question: {query}
+        User Question: ${query}
         
         Answer:
-      `);
+      `;
       
       const model = this.createChatModel({
         model: options.model || this.defaultModel,
@@ -148,15 +137,10 @@ export class LangChainService {
         maxTokens: options.maxTokens,
       });
       
-      // Create chain using pipe syntax
-      const chain = ragPromptTemplate.pipe(model).pipe(new StringOutputParser());
+      // Run the model directly with the formatted prompt
+      const response = await model.invoke(ragPromptTemplate);
       
-      const response = await chain.invoke({
-        context: context,
-        query: query
-      });
-      
-      return response;
+      return response.content as string;
     } catch (error) {
       console.error('LangChain RAG error:', error);
       throw new Error(`Failed to generate RAG response: ${error}`);

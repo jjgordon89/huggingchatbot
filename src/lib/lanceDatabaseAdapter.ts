@@ -1,3 +1,4 @@
+
 /**
  * LanceDB adapter for vector database operations
  * This is a simplified implementation that would be replaced with actual LanceDB integration

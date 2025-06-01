@@ -6,7 +6,6 @@
  */
 
 import { LanceDbStore } from './lanceDatabaseAdapter';
-import { enhancedRagService } from './enhancedRagService';
 
 /**
  * Document interface for LanceDB storage
@@ -29,8 +28,12 @@ let lanceDbStores: Record<string, LanceDbStore> = {};
  */
 export function getOrCreateVectorStore(workspaceId: string): LanceDbStore {
   if (!lanceDbStores[workspaceId]) {
-    // Initialize a new vector store for this workspace
-    const store = new LanceDbStore(workspaceId);
+    // Initialize a new vector store for this workspace with proper options
+    const store = new LanceDbStore({
+      embeddingDimensions: 384,
+      includeMetadata: true,
+      indexType: 'hnsw'
+    });
     lanceDbStores[workspaceId] = store;
   }
   
@@ -49,15 +52,15 @@ export async function addDocumentToVectorStore(
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    await store.addDocument({
+    // Create a simple embedding (mock for now)
+    const mockEmbedding = new Array(384).fill(0).map(() => Math.random());
+    
+    await store.addDocument(document.content, mockEmbedding, {
       id: document.id,
-      content: document.content,
-      metadata: {
-        ...document.metadata,
-        title: document.title,
-        documentType: document.type,
-        created: document.createdAt.toISOString()
-      }
+      title: document.title,
+      documentType: document.type,
+      created: document.createdAt.toISOString(),
+      ...document.metadata
     });
     
     console.log(`Added document ${document.id} to vector store for workspace ${workspaceId}`);
@@ -79,15 +82,8 @@ export async function deleteDocumentFromVectorStore(
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    // Since we don't have direct deleteDocument functionality in LanceDB adapter yet,
-    // we'll simulate it by clearing and then re-adding all documents except the deleted one
-    
-    // In a real implementation, this would be more efficient with a proper delete method
-    console.log(`Simulating deletion of document ${documentId} from workspace ${workspaceId}`);
-    
-    // For now, we'll just log the deletion intention
-    // A proper implementation would require extending the LanceDbStore class
-    console.log(`Document ${documentId} marked for deletion from vector store`);
+    await store.deleteDocument(documentId);
+    console.log(`Document ${documentId} deleted from vector store`);
   } catch (error) {
     console.error('Error deleting document from vector store:', error);
     throw new Error(`Failed to delete document from vector store: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -110,19 +106,20 @@ export async function vectorSearch(
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    // Use search method from LanceDbStore
-    const results = await store.search(query, topK);
+    // Create a mock embedding for the query
+    const queryEmbedding = new Array(384).fill(0).map(() => Math.random());
     
-    // Filter by threshold and transform the results to a more friendly format
-    return results
-      .filter(doc => (doc.metadata?.similarity || 0) >= threshold)
-      .map(doc => ({
-        id: doc.id,
-        text: doc.content,
-        documentName: doc.metadata?.title || 'Untitled Document',
-        similarity: doc.metadata?.similarity || 0,
-        metadata: doc.metadata || {}
-      }));
+    // Use search method from LanceDbStore
+    const results = await store.search(queryEmbedding, topK, threshold * 100);
+    
+    // Transform the results to a more friendly format
+    return results.map(result => ({
+      id: result.id,
+      text: result.text,
+      documentName: result.metadata?.title || 'Untitled Document',
+      similarity: result.score / 100,
+      metadata: result.metadata || {}
+    }));
   } catch (error) {
     console.error('Error performing vector search:', error);
     throw new Error(`Failed to perform vector search: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -141,12 +138,9 @@ export async function reindexWorkspace(
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    // Clear existing documents (if method exists)
+    // Clear existing documents
     try {
-      // This might not exist in the current implementation
-      if (typeof store.clearDocuments === 'function') {
-        await store.clearDocuments();
-      }
+      await store.clearAll();
     } catch (e) {
       console.log('Clear method not available, continuing with reindex');
     }
@@ -154,15 +148,13 @@ export async function reindexWorkspace(
     // Add all documents
     if (documents.length > 0) {
       for (const doc of documents) {
-        await store.addDocument({
+        const mockEmbedding = new Array(384).fill(0).map(() => Math.random());
+        await store.addDocument(doc.content, mockEmbedding, {
           id: doc.id,
-          content: doc.content,
-          metadata: {
-            ...doc.metadata,
-            title: doc.title,
-            documentType: doc.type,
-            created: doc.createdAt.toISOString()
-          }
+          title: doc.title,
+          documentType: doc.type,
+          created: doc.createdAt.toISOString(),
+          ...doc.metadata
         });
       }
     }
