@@ -2,9 +2,9 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { RunnableSequence, RunnablePassthrough } from '@langchain/core/runnables';
+import { RunnableSequence } from '@langchain/core/runnables';
 import { Document as LangChainDocument } from 'langchain/document';
-import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 
 // Define interfaces for our service
 export interface LangChainMessage {
@@ -59,7 +59,7 @@ export class LangChainService {
       });
       
       // Convert to LangChain message format
-      const formattedMessages: BaseMessage[] = messages.map((message) => {
+      const formattedMessages = messages.map((message) => {
         switch (message.role) {
           case 'system':
             return new SystemMessage(message.content);
@@ -77,7 +77,7 @@ export class LangChainService {
         formattedMessages.unshift(new SystemMessage(options.systemPrompt || this.defaultSystemPrompt));
       }
       
-      // Invoke the model
+      // Invoke the model with proper message format
       console.log('Generating chat response with LangChain...');
       const response = await model.invoke(formattedMessages);
       
@@ -96,12 +96,8 @@ export class LangChainService {
       // Create a prompt template
       const prompt = PromptTemplate.fromTemplate(promptTemplate);
       
-      // Create a chain - using more compatible syntax with latest LangChain
-      const chain = RunnableSequence.from([
-        prompt,
-        model,
-        new StringOutputParser(),
-      ]);
+      // Create a chain using pipe syntax for better compatibility
+      const chain = prompt.pipe(model).pipe(new StringOutputParser());
       
       // Run the chain
       const result = await chain.invoke(input);
@@ -152,13 +148,13 @@ export class LangChainService {
         maxTokens: options.maxTokens,
       });
       
-      // Use more compatible chain approach for newer LangChain
-      const chain = RunnableSequence.from([{
-        context: () => context,
-        query: () => query
-      }, ragPromptTemplate, model, new StringOutputParser()]);
+      // Create chain using pipe syntax
+      const chain = ragPromptTemplate.pipe(model).pipe(new StringOutputParser());
       
-      const response = await chain.invoke({});
+      const response = await chain.invoke({
+        context: context,
+        query: query
+      });
       
       return response;
     } catch (error) {

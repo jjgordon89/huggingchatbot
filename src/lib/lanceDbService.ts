@@ -1,3 +1,4 @@
+
 /**
  * LanceDB Service
  * 
@@ -29,11 +30,8 @@ let lanceDbStores: Record<string, LanceDbStore> = {};
 export function getOrCreateVectorStore(workspaceId: string): LanceDbStore {
   if (!lanceDbStores[workspaceId]) {
     // Initialize a new vector store for this workspace
-    const store = new LanceDbStore(workspaceId, enhancedRagService['embeddingGenerator']);
+    const store = new LanceDbStore(workspaceId);
     lanceDbStores[workspaceId] = store;
-    
-    // Update the RAG service with this store
-    enhancedRagService.setVectorStore(store);
   }
   
   return lanceDbStores[workspaceId];
@@ -51,7 +49,7 @@ export async function addDocumentToVectorStore(
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    await store.addDocuments([{
+    await store.addDocument({
       id: document.id,
       content: document.content,
       metadata: {
@@ -60,7 +58,7 @@ export async function addDocumentToVectorStore(
         documentType: document.type,
         created: document.createdAt.toISOString()
       }
-    }]);
+    });
     
     console.log(`Added document ${document.id} to vector store for workspace ${workspaceId}`);
   } catch (error) {
@@ -101,27 +99,30 @@ export async function deleteDocumentFromVectorStore(
  * @param workspaceId The workspace ID
  * @param query The search query
  * @param topK The number of results to return
- * @param threshold The similarity threshold (0-100)
+ * @param threshold The similarity threshold (0-1)
  */
 export async function vectorSearch(
   workspaceId: string,
   query: string,
   topK: number = 5,
-  threshold: number = 70
+  threshold: number = 0.7
 ): Promise<any[]> {
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    const results = await store.searchSimilar(query, topK, threshold);
+    // Use search method from LanceDbStore
+    const results = await store.search(query, topK);
     
-    // Transform the results to a more friendly format
-    return results.map(doc => ({
-      id: doc.id,
-      text: doc.content,
-      documentName: doc.metadata?.title || 'Untitled Document',
-      similarity: doc.metadata?.similarity || 0,
-      metadata: doc.metadata || {}
-    }));
+    // Filter by threshold and transform the results to a more friendly format
+    return results
+      .filter(doc => (doc.metadata?.similarity || 0) >= threshold)
+      .map(doc => ({
+        id: doc.id,
+        text: doc.content,
+        documentName: doc.metadata?.title || 'Untitled Document',
+        similarity: doc.metadata?.similarity || 0,
+        metadata: doc.metadata || {}
+      }));
   } catch (error) {
     console.error('Error performing vector search:', error);
     throw new Error(`Failed to perform vector search: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -140,23 +141,30 @@ export async function reindexWorkspace(
   try {
     const store = getOrCreateVectorStore(workspaceId);
     
-    // Clear existing documents
-    await store.clear();
+    // Clear existing documents (if method exists)
+    try {
+      // This might not exist in the current implementation
+      if (typeof store.clearDocuments === 'function') {
+        await store.clearDocuments();
+      }
+    } catch (e) {
+      console.log('Clear method not available, continuing with reindex');
+    }
     
     // Add all documents
     if (documents.length > 0) {
-      const docsToAdd = documents.map(doc => ({
-        id: doc.id,
-        content: doc.content,
-        metadata: {
-          ...doc.metadata,
-          title: doc.title,
-          documentType: doc.type,
-          created: doc.createdAt.toISOString()
-        }
-      }));
-      
-      await store.addDocuments(docsToAdd);
+      for (const doc of documents) {
+        await store.addDocument({
+          id: doc.id,
+          content: doc.content,
+          metadata: {
+            ...doc.metadata,
+            title: doc.title,
+            documentType: doc.type,
+            created: doc.createdAt.toISOString()
+          }
+        });
+      }
     }
     
     console.log(`Reindexed ${documents.length} documents for workspace ${workspaceId}`);

@@ -74,9 +74,9 @@ export function useLangChain(): UseLangChainReturn {
     
     try {
       const docsForRag = documents.map(doc => ({
-        content: doc.content,
+        content: doc.content || '',
         metadata: {
-          title: doc.title,
+          name: doc.name || 'Untitled Document',
           type: doc.type,
           filename: doc.filename
         }
