@@ -36,7 +36,9 @@ import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import ResetSettingsDialog from '@/components/ResetSettingsDialog';
 import { useAppSettings } from '@/context/AppSettingsContext';
 import { useAuth } from '@/context/AuthContext';
-import { DummyLogin, DummyRegister, DummyEditProfile } from '@/components';
+import { DummyLogin } from '@/components/DummyLogin';
+import { DummyRegister } from '@/components/DummyRegister';
+import { DummyEditProfile } from '@/components/DummyEditProfile';
 import VectorDbStats from '@/components/VectorDbStats';
 
 export default function Profile() {
