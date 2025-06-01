@@ -1,238 +1,166 @@
-import { useState, useRef, useEffect } from 'react';
-import { useChat } from '@/context/ChatContext';
-import { useWorkspace } from '@/context/WorkspaceContext';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
-import {
-  SendHorizontal,
-  UploadCloud,
-  FileUp
-} from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { Textarea } from '@/components/ui/textarea';
+import { Send, Mic, Square, Paperclip, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useChat } from '@/context/ChatContext';
+import { useLangChain } from '@/hooks/use-langchain';
 
 export function ChatInput() {
-  const { 
-    sendMessage, 
-    isLoading, 
-    isApiKeySet
-  } = useChat();
-  
-  const { toast } = useToast();
-  const { activeWorkspaceId, addDocument } = useWorkspace();
-  
   const [input, setInput] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { sendMessage, isLoading: chatLoading } = useChat();
+  const { isGenerating } = useLangChain();
   
-  // File upload state
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
-  
-  // Character counter
-  const maxChars = 4000;
-  const charCount = input.length;
-  const isAtLimit = charCount >= maxChars;
+  const isLoading = chatLoading || isGenerating;
 
+  // Auto-resize textarea
   useEffect(() => {
-    // Auto focus the input on component mount
-    if (inputRef.current) {
-      inputRef.current.focus();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
-  }, []); 
+  }, [input]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!input.trim() || isLoading) return;
     
-    if (!input.trim() || isLoading || !isApiKeySet) return;
-    
-    sendMessage(input.trim());
+    const message = input.trim();
     setInput('');
+    
+    await sendMessage(message);
   };
-  
-  // File upload handlers
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0 || !activeWorkspaceId) return;
-    
-    setUploading(true);
-    
-    // Simulate file upload and processing
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
-      // Update progress
-      setUploadProgress(((i + 1) / files.length) * 100);
-      
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Add document to workspace
-      const docId = Math.random().toString(36).substring(2, 11);
-      addDocument(activeWorkspaceId, {
-        id: docId,
-        name: file.name,
-        path: URL.createObjectURL(file)
-      });
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
     }
-    
-    // Complete upload process
-    setUploading(false);
-    setUploadProgress(0);
-    
-    // Show success toast
-    toast({
-      title: "Documents Added",
-      description: `Successfully added ${files.length} document(s) to your knowledge base`,
-    });
   };
-  
-  // Handle input file change
-  const handleInputFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(event.target.files);
-    // Reset file input
-    event.target.value = '';
-  };
-  
-  // Drag and drop handlers
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingFile(true);
-  };
-  
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingFile(false);
-  };
-  
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingFile(false);
-    
-    const files = e.dataTransfer.files;
-    handleFileUpload(files);
+
+  const handleMicClick = () => {
+    setIsRecording(!isRecording);
+    // Voice recording implementation would go here
   };
 
   return (
-    <div
-      className={cn(
-        "fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-sm z-10",
-        isDraggingFile && "ring-1 ring-blue-400"
-      )}
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <div className="max-w-3xl mx-auto px-4 py-3">
+    <div className="relative">
+      {/* Background glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+      
+      <div className="relative z-10 p-4 max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="relative">
-          <div className="relative flex items-center">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e as unknown as React.FormEvent);
-                }
-              }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder={
-                !isApiKeySet
-                  ? "Please set your API key in settings..."
-                  : isLoading
-                  ? "Thinking..."
-                  : "Message Alfred AI..."
-              }
-              disabled={isLoading || !isApiKeySet}
-              className={cn(
-                "w-full py-3 px-4 bg-white border border-slate-200 rounded-lg",
-                "text-slate-800 placeholder:text-slate-400 focus:outline-none",
-                "focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-              )}
-              maxLength={maxChars}
-            />
+          {/* Main input container with holographic styling */}
+          <div className={cn(
+            "relative rounded-2xl transition-all duration-300",
+            "bg-gradient-to-br from-gray-900/95 via-gray-800/90 to-gray-900/95",
+            "border border-purple-500/30 shadow-[0_0_20px_rgba(147,51,234,0.3)]",
+            "hover:border-purple-400/50 hover:shadow-[0_0_30px_rgba(147,51,234,0.4)]",
+            isLoading && "border-cyan-400/50 shadow-[0_0_25px_rgba(34,211,238,0.4)]"
+          )}>
+            {/* Holographic shine effect */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-50 animate-holographic-shine pointer-events-none" />
             
-            {/* Upload button */}
-            <div className="absolute right-12">
-              <div className="relative">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleInputFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-8 h-8"
-                  disabled={uploading || isLoading}
+            <div className="relative flex items-end gap-3 p-4">
+              {/* Attachment button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-9 w-9 text-gray-400 hover:text-cyan-400 hover:bg-white/10 transition-colors"
+              >
+                <Paperclip className="h-4 w-4" />
+                <span className="sr-only">Attach file</span>
+              </Button>
+
+              {/* Text input */}
+              <div className="flex-1 relative">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isLoading ? "AI is thinking..." : "Type your message..."}
+                  disabled={isLoading}
+                  className={cn(
+                    "min-h-[44px] max-h-[120px] resize-none border-0 bg-transparent text-white placeholder:text-gray-400",
+                    "focus:ring-0 focus:outline-none p-0",
+                    "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-600"
+                  )}
+                  rows={1}
                 />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  disabled={uploading || isLoading}
-                  className="h-8 w-8 text-slate-400 hover:text-slate-600"
-                >
-                  <FileUp className="h-4 w-4" />
-                </Button>
+                
+                {/* Character count or status indicator */}
+                {input.length > 0 && (
+                  <div className="absolute bottom-1 right-2 text-xs text-gray-500">
+                    {input.length}/2000
+                  </div>
+                )}
               </div>
-            </div>
-            
-            {/* Send button */}
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim() || isLoading || !isApiKeySet || isAtLimit}
-              className="absolute right-2 p-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              {isLoading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-r-transparent" />
-              ) : (
-                <SendHorizontal className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
-          
-          {/* File upload progress */}
-          {uploading && (
-            <div className="mt-2 space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <div className="flex justify-between text-sm">
-                <span className="text-sm font-medium flex items-center gap-1.5">
-                  <UploadCloud className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Uploading documents...</span>
+
+              {/* Voice recording button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleMicClick}
+                className={cn(
+                  "shrink-0 h-9 w-9 transition-all duration-200",
+                  isRecording 
+                    ? "text-red-400 hover:text-red-300 hover:bg-red-500/20 animate-pulse" 
+                    : "text-gray-400 hover:text-cyan-400 hover:bg-white/10"
+                )}
+              >
+                {isRecording ? (
+                  <Square className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+                <span className="sr-only">
+                  {isRecording ? 'Stop recording' : 'Start voice recording'}
                 </span>
-                <span className="text-xs text-slate-500">{Math.round(uploadProgress)}%</span>
-              </div>
-              <Progress value={uploadProgress} className="h-1.5" />
+              </Button>
+
+              {/* Send button */}
+              <Button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className={cn(
+                  "shrink-0 h-9 w-9 p-0 rounded-xl transition-all duration-200",
+                  "bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500",
+                  "border border-purple-400/30 shadow-[0_0_15px_rgba(147,51,234,0.4)]",
+                  "hover:shadow-[0_0_25px_rgba(147,51,234,0.6)] hover:scale-105",
+                  "disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
+                )}
+              >
+                {isLoading ? (
+                  <Sparkles className="h-4 w-4 animate-pulse" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                <span className="sr-only">Send message</span>
+              </Button>
             </div>
-          )}
-          
-          {/* Info text */}
-          {!uploading && (
-            <p className="text-xs text-center text-slate-500 mt-2">
-              Press <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono">Enter</kbd> to send
-            </p>
+          </div>
+
+          {/* Status indicator */}
+          {isLoading && (
+            <div className="flex items-center justify-center mt-3 text-sm text-cyan-400">
+              <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+              <span>AI is generating a response...</span>
+            </div>
           )}
         </form>
-      </div>
-      
-      {/* File drop indicator */}
-      {isDraggingFile && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/90 z-50 border-2 border-dashed border-blue-400">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <UploadCloud className="h-10 w-10 text-blue-500" />
-            <p className="text-sm font-medium">Drop files here</p>
-          </div>
+
+        {/* Helpful shortcuts */}
+        <div className="mt-2 text-center text-xs text-gray-500">
+          Press <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">Enter</kbd> to send, 
+          <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300 ml-1">Shift + Enter</kbd> for new line
         </div>
-      )}
+      </div>
     </div>
   );
 }
