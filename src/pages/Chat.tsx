@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { ChatMessages } from '@/components/ChatMessages';
+import { ModernChatMessages } from '@/components/ModernChatMessages';
 import { ChatInput } from '@/components/ChatInput';
 import { useSqlite } from '@/hooks/use-sqlite';
 import { useWorkspace } from '@/context/WorkspaceContext';
@@ -53,32 +53,32 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <div className="flex-1 overflow-hidden relative">
-        <ChatMessages />
+        <ModernChatMessages />
         
-        {/* LangChain status indicator */}
+        {/* LangChain status indicator with holographic styling */}
         {isGenerating && (
-          <div className="absolute bottom-4 left-4 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 px-3 py-1 rounded-full flex items-center text-xs">
-            <Sparkles className="h-3 w-3 mr-1.5 animate-pulse" />
+          <div className="absolute bottom-4 left-4 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center text-sm border border-blue-400/30 shadow-[0_0_20px_rgba(59,130,246,0.5)]">
+            <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
             Generating with LangChain...
           </div>
         )}
       </div>
       
-      <div className="w-full mt-auto">
+      <div className="w-full mt-auto relative z-10">
         <ChatInput />
       </div>
       
-      {/* Quick action button */}
-      <div className="absolute bottom-20 right-4">
+      {/* Modern floating action button */}
+      <div className="absolute bottom-20 right-4 z-10">
         <Button 
           onClick={handleCreateNewChat} 
           disabled={isCreatingChat || !isInitialized} 
           size="sm" 
-          className="rounded-full h-10 w-10 p-0"
+          className="rounded-full h-12 w-12 p-0 bg-gradient-to-br from-purple-600 to-blue-600 border border-purple-400/30 shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:shadow-[0_0_30px_rgba(147,51,234,0.6)] transition-all duration-300"
         >
-          <MessageSquare className="h-5 w-5" />
+          <MessageSquare className="h-6 w-6" />
           <span className="sr-only">New Chat</span>
         </Button>
       </div>

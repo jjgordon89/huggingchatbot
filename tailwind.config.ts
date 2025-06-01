@@ -145,6 +145,31 @@ export default {
 						backgroundPosition: '0% 100%',
 						opacity: '0.1'
 					}
+				},
+				'spin-slow': {
+					'0%': { transform: 'rotate(0deg)' },
+					'100%': { transform: 'rotate(360deg)' }
+				},
+				'gradient-shift': {
+					'0%, 100%': {
+						backgroundPosition: '0% 50%'
+					},
+					'50%': {
+						backgroundPosition: '100% 50%'
+					}
+				},
+				'holographic-shine': {
+					'0%': {
+						transform: 'translateX(-100%) skewX(-15deg)',
+						opacity: '0'
+					},
+					'50%': {
+						opacity: '1'
+					},
+					'100%': {
+						transform: 'translateX(200%) skewX(-15deg)',
+						opacity: '0'
+					}
 				}
 			},
 			animation: {
@@ -161,7 +186,10 @@ export default {
 				'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
 				'breathe': 'breathe 4s ease-in-out infinite',
 				'cyber-scan': 'cyber-scan 8s ease infinite',
-				'bounce-slow': 'bounce 2s ease-in-out infinite'
+				'bounce-slow': 'bounce 2s ease-in-out infinite',
+				'spin-slow': 'spin-slow 8s linear infinite',
+				'gradient-shift': 'gradient-shift 4s ease-in-out infinite',
+				'holographic-shine': 'holographic-shine 2s ease-in-out infinite'
 			},
 			boxShadow: {
 				'subtle': '0 2px 10px rgba(0, 0, 0, 0.05)',
@@ -175,7 +203,9 @@ export default {
 				'inner-glow': 'inset 0 0 10px rgba(249, 115, 22, 0.3)',
 				'cyber-card': '0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(249, 115, 22, 0.1)',
 				'cyber-button': '0 2px 8px rgba(249, 115, 22, 0.3), 0 0 0 1px rgba(249, 115, 22, 0.2)',
-				'soft-highlight': '0 -1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(0, 0, 0, 0.2)'
+				'soft-highlight': '0 -1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(0, 0, 0, 0.2)',
+				'holographic': '0 0 20px rgba(147, 51, 234, 0.4), 0 0 40px rgba(59, 130, 246, 0.2), 0 0 60px rgba(34, 211, 238, 0.1)',
+				'holographic-lg': '0 0 30px rgba(147, 51, 234, 0.6), 0 0 60px rgba(59, 130, 246, 0.4), 0 0 90px rgba(34, 211, 238, 0.2)'
 			},
 			backgroundImage: {
 				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -189,7 +219,10 @@ export default {
 				'cyber-scan-line': 'linear-gradient(to bottom, transparent, rgba(249, 115, 22, 0.15), transparent)',
 				'noise-pattern': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.06\'/%3E%3C/svg%3E")',
 				'dotted-pattern': 'radial-gradient(rgba(249, 115, 22, 0.1) 1px, transparent 1px)',
-				'vertical-gradient': 'linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.05))'
+				'vertical-gradient': 'linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.05))',
+				'gradient-conic': 'conic-gradient(var(--tw-gradient-stops))',
+				'holographic-gradient': 'linear-gradient(45deg, #8B5CF6, #3B82F6, #06B6D4, #8B5CF6)',
+				'chrome-gradient': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
 			},
 			backdropBlur: {
 				'xs': '2px'
