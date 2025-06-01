@@ -9,13 +9,12 @@ import {
   ArrowLeft, 
   Copy, 
   CheckCircle2, 
-  Zap,
-  ArrowUpRight,
   Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HolographicCard } from './HolographicCard';
 import { HolographicBackground } from './HolographicBackground';
+import { ModernWelcomeScreen } from './ModernWelcomeScreen';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -26,9 +25,7 @@ export function ModernChatMessages() {
     isLoading,
     startThread,
     exitThread,
-    activeThreadId,
-    activeModel,
-    sendMessage
+    activeThreadId
   } = useChat();
   const endRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -60,10 +57,10 @@ export function ModernChatMessages() {
     <div className="relative flex-1 overflow-hidden">
       <HolographicBackground />
       
-      <div className="relative z-10 px-4 py-6 overflow-y-auto flex-1 pb-32 chat-scroll-area">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {activeThreadId && (
-            <HolographicCard variant="glass" className="sticky top-0 z-20 mb-6">
+      <div className="relative z-10 overflow-y-auto flex-1 pb-32 chat-scroll-area">
+        {activeThreadId && (
+          <div className="sticky top-0 z-20 p-4">
+            <HolographicCard variant="glass" className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-medium flex items-center gap-3 text-white">
                   <MessageCircle className="h-5 w-5 text-cyan-400" />
@@ -80,51 +77,14 @@ export function ModernChatMessages() {
                 </Button>
               </div>
             </HolographicCard>
-          )}
-          
-          {messages.length === 0 ? (
-            <div className="text-center py-16 px-4">
-              <HolographicCard variant="glass" className="max-w-2xl mx-auto">
-                <div className="text-center">
-                  {/* Holographic AI Icon */}
-                  <div className="w-24 h-24 mx-auto mb-8 relative">
-                    <div className="absolute inset-0 rounded-full bg-gradient-conic from-purple-500 via-blue-500 via-cyan-400 via-purple-600 to-purple-500 animate-spin-slow blur-lg opacity-60"></div>
-                    <div className="relative w-full h-full rounded-full bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center border border-purple-400/30">
-                      <Zap className="h-12 w-12 text-cyan-400" />
-                    </div>
-                  </div>
-                  
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
-                    Welcome to Alfred AI
-                  </h2>
-                  <p className="text-gray-300 mb-8 max-w-md mx-auto leading-relaxed">
-                    Experience the future of AI conversation with holographic-powered assistance. 
-                    Ask questions, explore ideas, or get help with any task.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
-                    <SamplePrompt 
-                      text="Explain quantum computing simply" 
-                      gradient="from-purple-500 to-blue-500"
-                    />
-                    <SamplePrompt 
-                      text="Create a futuristic story" 
-                      gradient="from-cyan-500 to-purple-500"
-                    />
-                    <SamplePrompt 
-                      text="Design a wellness routine" 
-                      gradient="from-blue-500 to-cyan-500"
-                    />
-                    <SamplePrompt 
-                      text="Latest AI breakthroughs 2025" 
-                      gradient="from-pink-500 to-purple-500"
-                    />
-                  </div>
-                </div>
-              </HolographicCard>
-            </div>
-          ) : (
-            messages.map((message) => {
+          </div>
+        )}
+        
+        {messages.length === 0 ? (
+          <ModernWelcomeScreen />
+        ) : (
+          <div className="px-4 py-6 max-w-4xl mx-auto space-y-6">
+            {messages.map((message) => {
               if (message.role === 'system') return null;
               
               const isAssistant = message.role === 'assistant';
@@ -234,63 +194,39 @@ export function ModernChatMessages() {
                   </div>
                 </div>
               );
-            })
-          )}
+            })}
 
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="flex justify-start">
-              <HolographicCard variant="primary" className="mr-12 max-w-md">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center animate-pulse">
-                    <Bot className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-cyan-300 text-sm font-medium">Alfred AI</span>
-                      <Badge className="text-[10px] py-0 h-4 bg-purple-500/20 border-purple-400/30 text-purple-200 animate-pulse">
-                        <Sparkles className="h-2 w-2 mr-1" />
-                        Thinking...
-                      </Badge>
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex justify-start">
+                <HolographicCard variant="primary" className="mr-12 max-w-md">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center animate-pulse">
+                      <Bot className="h-4 w-4 text-white" />
                     </div>
-                    <div className="space-y-2">
-                      <div className="h-3 bg-gray-600/50 animate-pulse rounded-full w-full"></div>
-                      <div className="h-3 bg-gray-600/50 animate-pulse rounded-full w-4/5"></div>
-                      <div className="h-3 bg-gray-600/50 animate-pulse rounded-full w-3/5"></div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-cyan-300 text-sm font-medium">Alfred AI</span>
+                        <Badge className="text-[10px] py-0 h-4 bg-purple-500/20 border-purple-400/30 text-purple-200 animate-pulse">
+                          <Sparkles className="h-2 w-2 mr-1" />
+                          Thinking...
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-gray-600/50 animate-pulse rounded-full w-full"></div>
+                        <div className="h-3 bg-gray-600/50 animate-pulse rounded-full w-4/5"></div>
+                        <div className="h-3 bg-gray-600/50 animate-pulse rounded-full w-3/5"></div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </HolographicCard>
-            </div>
-          )}
-          
-          <div ref={endRef} className="h-4" />
-        </div>
+                </HolographicCard>
+              </div>
+            )}
+            
+            <div ref={endRef} className="h-4" />
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-function SamplePrompt({ text, gradient }: { text: string; gradient: string }) {
-  const { sendMessage } = useChat();
-  
-  return (
-    <button
-      onClick={() => sendMessage(text)}
-      className={cn(
-        "group relative p-4 text-left text-sm rounded-xl border border-white/20 transition-all duration-300",
-        "bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm",
-        "hover:scale-[1.02] hover:border-white/40 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-      )}
-    >
-      <div className={cn(
-        "absolute inset-0 rounded-xl bg-gradient-to-r opacity-0 group-hover:opacity-20 transition-opacity duration-300",
-        gradient
-      )} />
-      <div className="relative z-10 flex justify-between items-center gap-3">
-        <span className="font-medium text-white">{text}</span>
-        <ArrowUpRight className="h-4 w-4 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-      </div>
-    </button>
   );
 }
