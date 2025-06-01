@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -166,8 +167,9 @@ export const DocumentSettings: React.FC<DocumentSettingsProps> = ({ workspaceId 
     }));
   };
 
-  const handleSelectModel = (model: { id: string }) => {
-    updateSetting('vectorization', 'embeddingModel', model.id);
+  // Fixed handleSelectModel to match EmbeddingModelSelector expected signature
+  const handleSelectModel = (modelId: string, useHuggingFace: boolean) => {
+    updateSetting('vectorization', 'embeddingModel', modelId);
   };
 
   return (

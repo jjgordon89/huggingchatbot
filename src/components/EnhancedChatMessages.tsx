@@ -127,6 +127,8 @@ export function EnhancedChatMessages() {
     return {
       ...message,
       isParentMessage,
+      // Add mock sources property for compatibility
+      sources: message.sources || [],
       // Add status indicators - these would normally come from a real system
       deliveryStatus: {
         isDelivered: true,
