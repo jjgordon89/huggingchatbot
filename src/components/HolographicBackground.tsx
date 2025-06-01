@@ -1,31 +1,49 @@
 
 import React from 'react';
+import { HolographicOrb } from './HolographicOrb';
 
 export function HolographicBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Main holographic orb - inspired by the Chroma designs */}
-      <div className="absolute top-20 right-20 w-96 h-96 opacity-30">
-        <div className="w-full h-full rounded-full bg-gradient-conic from-purple-500 via-blue-500 via-cyan-400 via-purple-600 to-purple-500 animate-spin-slow blur-xl"></div>
+      {/* Main hero orb - Chroma inspired */}
+      <div className="absolute top-20 right-20 opacity-20">
+        <HolographicOrb size="2xl" variant="chroma-1" />
       </div>
       
-      {/* Secondary smaller orbs */}
-      <div className="absolute bottom-32 left-16 w-48 h-48 opacity-20">
-        <div className="w-full h-full rounded-full bg-gradient-radial from-cyan-400/50 via-blue-500/30 to-purple-600/50 animate-pulse-subtle blur-lg"></div>
+      {/* Secondary Chroma orbs */}
+      <div className="absolute bottom-32 left-16 opacity-15">
+        <HolographicOrb size="xl" variant="chroma-2" />
       </div>
       
-      <div className="absolute top-1/3 left-1/4 w-32 h-32 opacity-25">
-        <div className="w-full h-full rounded-full bg-gradient-conic from-pink-500 via-purple-500 to-cyan-500 animate-breathe blur-md"></div>
+      <div className="absolute top-1/3 left-1/4 opacity-25">
+        <HolographicOrb size="lg" variant="chroma-3" />
       </div>
       
-      {/* Floating particles */}
-      <div className="absolute top-1/4 right-1/3 w-16 h-16 opacity-40">
-        <div className="w-full h-full rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 animate-float blur-sm"></div>
+      {/* Smaller floating Chroma particles */}
+      <div className="absolute top-1/4 right-1/3 opacity-30">
+        <HolographicOrb size="md" variant="chroma-4" />
       </div>
       
-      <div className="absolute bottom-1/4 right-1/4 w-24 h-24 opacity-30">
-        <div className="w-full h-full rounded-full bg-gradient-to-tr from-purple-400 to-pink-500 animate-bounce-subtle blur-sm"></div>
+      <div className="absolute bottom-1/4 right-1/4 opacity-20">
+        <HolographicOrb size="lg" variant="chroma-5" />
       </div>
+      
+      {/* Tiny floating particles */}
+      <div className="absolute top-1/2 left-1/3 opacity-40">
+        <HolographicOrb size="sm" variant="chroma-1" />
+      </div>
+      
+      <div className="absolute top-3/4 right-1/3 opacity-35">
+        <HolographicOrb size="sm" variant="chroma-2" />
+      </div>
+      
+      <div className="absolute top-1/5 left-1/2 opacity-30">
+        <HolographicOrb size="xs" variant="chroma-3" />
+      </div>
+      
+      {/* Chrome-style gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-radial from-transparent via-purple-900/5 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-conic from-transparent via-blue-900/3 to-transparent opacity-50" />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import React from 'react';
 import { ArrowUpRight, Sparkles, Zap, MessageSquare, Brain, Lightbulb } from 'lucide-react';
 import { HolographicCard } from './HolographicCard';
 import { HolographicOrb } from './HolographicOrb';
-import { GlassButton } from './GlassButton';
+import { HolographicButton } from './HolographicButton';
 import { useChat } from '@/context/ChatContext';
 import { cn } from '@/lib/utils';
 
@@ -11,25 +11,25 @@ const samplePrompts = [
   {
     text: "Explain quantum computing in simple terms",
     icon: Brain,
-    gradient: "from-purple-500 to-blue-500",
+    gradient: "chroma-1",
     category: "Education"
   },
   {
     text: "Write a creative story about AI and humans",
     icon: Lightbulb,
-    gradient: "from-cyan-500 to-purple-500",
+    gradient: "chroma-2",
     category: "Creative"
   },
   {
     text: "Help me design a morning routine",
     icon: Sparkles,
-    gradient: "from-blue-500 to-cyan-500",
+    gradient: "chroma-3",
     category: "Lifestyle"
   },
   {
     text: "What are the latest AI breakthroughs in 2025?",
     icon: Zap,
-    gradient: "from-pink-500 to-purple-500",
+    gradient: "chroma-4",
     category: "Technology"
   }
 ];
@@ -42,58 +42,62 @@ export function ModernWelcomeScreen() {
       <div className="max-w-4xl mx-auto text-center space-y-8">
         {/* Main Hero Section */}
         <div className="relative">
-          {/* Background orbs */}
-          <div className="absolute -top-20 left-1/4 opacity-30">
-            <HolographicOrb size="lg" variant="primary" />
+          {/* Background Chroma orbs */}
+          <div className="absolute -top-20 left-1/4 opacity-20">
+            <HolographicOrb size="xl" variant="chroma-1" />
           </div>
-          <div className="absolute -top-10 right-1/3 opacity-20">
-            <HolographicOrb size="md" variant="secondary" />
-          </div>
-          
-          {/* Main AI Avatar */}
-          <div className="relative w-32 h-32 mx-auto mb-8">
-            <div className="absolute inset-0 rounded-full bg-gradient-conic from-purple-500 via-blue-500 via-cyan-400 via-purple-600 to-purple-500 animate-spin-slow blur-xl opacity-60"></div>
-            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center border border-purple-400/30 shadow-holographic">
-              <Zap className="h-16 w-16 text-cyan-400" />
-            </div>
-            {/* Floating particles */}
-            <div className="absolute -top-2 -right-2 w-6 h-6">
-              <HolographicOrb size="sm" variant="accent" />
-            </div>
-            <div className="absolute -bottom-2 -left-2 w-4 h-4">
-              <HolographicOrb size="sm" variant="secondary" />
-            </div>
+          <div className="absolute -top-10 right-1/3 opacity-15">
+            <HolographicOrb size="lg" variant="chroma-2" />
           </div>
           
-          {/* Main Title */}
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          {/* Main AI Avatar with Chroma effect */}
+          <div className="relative w-40 h-40 mx-auto mb-8">
+            <div className="absolute inset-0">
+              <HolographicOrb size="2xl" variant="chroma-1" />
+            </div>
+            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-gray-900/90 via-gray-800/80 to-gray-900/90 flex items-center justify-center border border-purple-400/30 shadow-holographic-lg backdrop-blur-sm">
+              <Zap className="h-20 w-20 text-cyan-400" />
+            </div>
+            {/* Floating Chroma particles */}
+            <div className="absolute -top-4 -right-4">
+              <HolographicOrb size="sm" variant="chroma-3" />
+            </div>
+            <div className="absolute -bottom-4 -left-4">
+              <HolographicOrb size="sm" variant="chroma-4" />
+            </div>
+          </div>
+          
+          {/* Main Title with Chroma gradient */}
+          <h1 className="text-6xl md:text-7xl font-bold mb-6">
+            <span className="bg-gradient-conic from-purple-600 via-blue-500 via-cyan-400 via-pink-500 to-purple-600 bg-clip-text text-transparent animate-gradient-shift">
               Welcome to
             </span>
             <br />
-            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-conic from-cyan-400 via-blue-500 via-purple-600 via-pink-500 to-cyan-400 bg-clip-text text-transparent animate-gradient-shift">
               Alfred AI
             </span>
           </h1>
           
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Experience the future of AI conversation with holographic-powered assistance.
+            Experience the future of AI conversation with 
+            <span className="bg-gradient-conic from-purple-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent font-semibold"> holographic-powered </span>
+            assistance.
             <span className="block mt-2 text-lg text-gray-400">
-              Powered by {activeModel?.name || 'Advanced AI'} • Ready to assist
+              Powered by {typeof activeModel === 'string' ? activeModel : activeModel?.name || 'Advanced AI'} • Ready to assist
             </span>
           </p>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions with Chroma buttons */}
         <div className="flex flex-wrap justify-center gap-4 mb-12">
-          <GlassButton variant="primary" size="lg" glow>
+          <HolographicButton variant="chroma" chromaVariant="primary" size="lg">
             <MessageSquare className="h-5 w-5 mr-2" />
             Start Conversation
-          </GlassButton>
-          <GlassButton variant="secondary" size="lg">
+          </HolographicButton>
+          <HolographicButton variant="glass" size="lg">
             <Brain className="h-5 w-5 mr-2" />
             Explore Features
-          </GlassButton>
+          </HolographicButton>
         </div>
 
         {/* Sample Prompts Grid */}
@@ -108,25 +112,25 @@ export function ModernWelcomeScreen() {
           ))}
         </div>
 
-        {/* Features Preview */}
+        {/* Features Preview with Chroma effects */}
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
           <FeatureCard
             icon={<Brain className="h-8 w-8" />}
             title="Advanced AI"
             description="Powered by cutting-edge language models"
-            gradient="from-purple-500 to-blue-500"
+            chromaVariant="chroma-1"
           />
           <FeatureCard
             icon={<Sparkles className="h-8 w-8" />}
             title="Holographic UI"
             description="Beautiful, futuristic interface design"
-            gradient="from-cyan-500 to-purple-500"
+            chromaVariant="chroma-2"
           />
           <FeatureCard
             icon={<Zap className="h-8 w-8" />}
             title="Real-time"
             description="Instant responses and smooth interactions"
-            gradient="from-pink-500 to-purple-500"
+            chromaVariant="chroma-3"
           />
         </div>
       </div>
@@ -150,11 +154,14 @@ function SamplePromptCard({ prompt, onSelect, delay }: {
         onClick={onSelect}
       >
         <div className="relative p-6">
-          {/* Category badge */}
+          {/* Chroma orb indicator */}
           <div className="flex justify-between items-start mb-4">
-            <span className="text-xs font-medium text-cyan-300 bg-cyan-500/10 px-2 py-1 rounded-full border border-cyan-400/20">
-              {prompt.category}
-            </span>
+            <div className="flex items-center gap-3">
+              <HolographicOrb size="xs" variant={prompt.gradient as any} />
+              <span className="text-xs font-medium text-cyan-300 bg-cyan-500/10 px-2 py-1 rounded-full border border-cyan-400/20">
+                {prompt.category}
+              </span>
+            </div>
             <prompt.icon className="h-5 w-5 text-gray-400 group-hover:text-cyan-400 transition-colors" />
           </div>
           
@@ -169,31 +176,25 @@ function SamplePromptCard({ prompt, onSelect, delay }: {
             <ArrowUpRight className="h-4 w-4 text-cyan-400 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:translate-x-1 group-hover:-translate-y-1" />
           </div>
           
-          {/* Gradient overlay */}
-          <div className={cn(
-            "absolute inset-0 rounded-xl bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300",
-            prompt.gradient
-          )} />
+          {/* Chroma gradient overlay */}
+          <div className="absolute inset-0 rounded-xl bg-gradient-conic from-purple-500/10 via-blue-500/10 via-cyan-400/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       </HolographicCard>
     </div>
   );
 }
 
-function FeatureCard({ icon, title, description, gradient }: {
+function FeatureCard({ icon, title, description, chromaVariant }: {
   icon: React.ReactNode;
   title: string;
   description: string;
-  gradient: string;
+  chromaVariant: string;
 }) {
   return (
     <HolographicCard variant="glass" className="text-center p-6 group hover:scale-105 transition-all duration-300">
-      <div className={cn(
-        "w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br flex items-center justify-center",
-        gradient,
-        "opacity-80 group-hover:opacity-100 transition-opacity"
-      )}>
-        <div className="text-white">
+      <div className="relative w-16 h-16 mx-auto mb-4">
+        <HolographicOrb size="md" variant={chromaVariant as any} className="opacity-80 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 flex items-center justify-center text-white">
           {icon}
         </div>
       </div>
