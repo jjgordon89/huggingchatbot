@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 interface HolographicOrbProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  variant?: 'primary' | 'secondary' | 'accent' | 'rainbow' | 'chroma-1' | 'chroma-2' | 'chroma-3' | 'chroma-4' | 'chroma-5';
+  variant?: 'primary' | 'secondary' | 'accent' | 'rainbow' | 'chroma-1' | 'chroma-2' | 'chroma-3' | 'chroma-4' | 'chroma-5' | 'liquid-metal' | 'liquid-cyan' | 'liquid-chrome';
   className?: string;
   animated?: boolean;
 }
@@ -33,39 +33,48 @@ export function HolographicOrb({
     'chroma-2': 'from-blue-600 via-purple-500 via-pink-400 via-orange-500 to-blue-600',
     'chroma-3': 'from-cyan-500 via-blue-600 via-purple-500 via-pink-400 to-cyan-500',
     'chroma-4': 'from-pink-500 via-purple-600 via-blue-500 via-cyan-400 to-pink-500',
-    'chroma-5': 'from-orange-500 via-pink-600 via-purple-500 via-blue-400 to-orange-500'
+    'chroma-5': 'from-orange-500 via-pink-600 via-purple-500 via-blue-400 to-orange-500',
+    'liquid-metal': 'from-gray-200 via-gray-300 via-gray-100 via-white via-gray-200 to-gray-300',
+    'liquid-cyan': 'from-cyan-300 via-cyan-500 via-blue-400 via-teal-300 to-cyan-400',
+    'liquid-chrome': 'from-slate-300 via-slate-100 via-zinc-200 via-gray-300 to-slate-400'
   };
 
   return (
     <div className={cn('relative', sizeClasses[size], className)}>
-      {/* Outer glow ring */}
+      {/* Outer liquid glow ring */}
       <div className={cn(
-        'absolute inset-0 rounded-full bg-gradient-conic opacity-40 blur-xl',
+        'absolute inset-0 rounded-full bg-gradient-conic opacity-60 blur-2xl',
         variantClasses[variant],
         animated && 'animate-spin-slow'
       )} />
       
-      {/* Main orb with chrome-like effect */}
+      {/* Middle liquid ring */}
       <div className={cn(
-        'absolute inset-0 rounded-full bg-gradient-conic opacity-90 blur-sm',
+        'absolute inset-1 rounded-full bg-gradient-conic opacity-80 blur-lg',
         variantClasses[variant],
         animated && 'animate-spin-slow'
       )} />
       
-      {/* Inner orb */}
+      {/* Main liquid orb with metallic effect */}
       <div className={cn(
-        'absolute inset-1 rounded-full bg-gradient-conic opacity-80',
+        'absolute inset-2 rounded-full bg-gradient-conic opacity-95',
         variantClasses[variant],
         animated && 'animate-spin-slow'
       )} />
       
-      {/* Center reflection */}
-      <div className={cn(
-        'absolute inset-2 rounded-full bg-gradient-radial from-white/20 via-transparent to-black/30'
-      )} />
+      {/* Liquid surface reflection */}
+      <div className="absolute inset-3 rounded-full bg-gradient-radial from-white/40 via-white/10 to-transparent" />
       
-      {/* Chrome-like highlight */}
-      <div className="absolute inset-3 rounded-full bg-gradient-to-br from-white/40 via-transparent to-transparent" />
+      {/* Chrome-like liquid highlight */}
+      <div className="absolute inset-4 rounded-full bg-gradient-to-br from-white/60 via-transparent to-black/20" />
+      
+      {/* Liquid flow animation overlay */}
+      {animated && (
+        <div className={cn(
+          'absolute inset-0 rounded-full bg-gradient-conic opacity-30 animate-holographic-shine',
+          variantClasses[variant]
+        )} />
+      )}
     </div>
   );
 }
