@@ -9,6 +9,7 @@ import { Layout } from '@/components/Layout';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Import pages
 import Index from '@/pages/Index';
@@ -27,36 +28,42 @@ import FallbackPage from '@/pages/FallbackPage';
 const MinimalApp = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-      <UserPreferencesProvider>
-        <WorkspaceProvider>
-          <ChatProvider>
-            <WorkflowProvider>
-              <Router>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/chat" element={<Chat />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/documents" element={<Documents />} />
-                    <Route path="/knowledge-base" element={<DocumentKnowledgeBase />} />
-                    <Route path="/document-settings" element={<DocumentSettings />} />
-                    <Route path="/templates" element={<Templates />} />
-                    <Route path="/fine-tuning" element={<FineTuning />} />
-                    <Route path="/workflows" element={<WorkflowManagement />} />
-                    <Route path="/workflow-builder" element={<WorkflowBuilderPage />} />
-                    <Route path="/workflow-builder/:id" element={<WorkflowBuilderPage />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Layout>
-                
-                {/* Global Components */}
-                <Toaster />
-                <SonnerToaster />
-              </Router>
-            </WorkflowProvider>
-          </ChatProvider>
-        </WorkspaceProvider>
-      </UserPreferencesProvider>
+      <ErrorBoundary>
+        <UserPreferencesProvider>
+          <WorkspaceProvider>
+            <ErrorBoundary>
+              <ChatProvider>
+                <WorkflowProvider>
+                  <Router>
+                    <ErrorBoundary>
+                      <Layout>
+                        <Routes>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/chat" element={<Chat />} />
+                          <Route path="/profile" element={<Profile />} />
+                          <Route path="/documents" element={<Documents />} />
+                          <Route path="/knowledge-base" element={<DocumentKnowledgeBase />} />
+                          <Route path="/document-settings" element={<DocumentSettings />} />
+                          <Route path="/templates" element={<Templates />} />
+                          <Route path="/fine-tuning" element={<FineTuning />} />
+                          <Route path="/workflows" element={<WorkflowManagement />} />
+                          <Route path="/workflow-builder" element={<WorkflowBuilderPage />} />
+                          <Route path="/workflow-builder/:id" element={<WorkflowBuilderPage />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Layout>
+                    </ErrorBoundary>
+                    
+                    {/* Global Components */}
+                    <Toaster />
+                    <SonnerToaster />
+                  </Router>
+                </WorkflowProvider>
+              </ChatProvider>
+            </ErrorBoundary>
+          </WorkspaceProvider>
+        </UserPreferencesProvider>
+      </ErrorBoundary>
     </div>
   );
 };
