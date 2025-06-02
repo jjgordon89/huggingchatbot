@@ -13,7 +13,7 @@ export function HolographicOrb({
   size = 'md', 
   variant = 'primary', 
   className,
-  animated = true 
+  animated = false 
 }: HolographicOrbProps) {
   const sizeClasses = {
     xs: 'w-4 h-4',
@@ -44,22 +44,19 @@ export function HolographicOrb({
       {/* Outer liquid glow ring */}
       <div className={cn(
         'absolute inset-0 rounded-full bg-gradient-conic opacity-60 blur-2xl',
-        variantClasses[variant],
-        animated && 'animate-spin-slow'
+        variantClasses[variant]
       )} />
       
       {/* Middle liquid ring */}
       <div className={cn(
         'absolute inset-1 rounded-full bg-gradient-conic opacity-80 blur-lg',
-        variantClasses[variant],
-        animated && 'animate-spin-slow'
+        variantClasses[variant]
       )} />
       
       {/* Main liquid orb with metallic effect */}
       <div className={cn(
         'absolute inset-2 rounded-full bg-gradient-conic opacity-95',
-        variantClasses[variant],
-        animated && 'animate-spin-slow'
+        variantClasses[variant]
       )} />
       
       {/* Liquid surface reflection */}
@@ -67,14 +64,6 @@ export function HolographicOrb({
       
       {/* Chrome-like liquid highlight */}
       <div className="absolute inset-4 rounded-full bg-gradient-to-br from-white/60 via-transparent to-black/20" />
-      
-      {/* Liquid flow animation overlay */}
-      {animated && (
-        <div className={cn(
-          'absolute inset-0 rounded-full bg-gradient-conic opacity-30 animate-holographic-shine',
-          variantClasses[variant]
-        )} />
-      )}
     </div>
   );
 }

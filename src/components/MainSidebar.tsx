@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -5,6 +6,8 @@ import { WorkspaceSelector } from '@/components/WorkspaceSelector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LiquidMetalButton } from '@/components/LiquidMetalButton';
+import { HolographicOrb } from '@/components/HolographicOrb';
 import { cn } from '@/lib/utils';
 import {
   Home,
@@ -36,18 +39,23 @@ interface NavItemProps {
 const NavItem = ({ icon, label, href, isActive, isCollapsed, badge, external }: NavItemProps) => {
   const content = (
     <div className={cn(
-      "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all",
+      "flex items-center gap-3 rounded-2xl px-3 py-2 text-sm transition-all duration-300",
       isActive 
-        ? "bg-primary/10 text-primary font-medium" 
-        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+        ? "bg-gradient-to-r from-purple-600/20 via-blue-500/15 to-cyan-400/20 border border-purple-500/40 text-cyan-400 font-medium shadow-[0_0_20px_rgba(147,51,234,0.3)]" 
+        : "text-gray-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-cyan-400",
       isCollapsed ? "justify-center py-3" : "w-full"
     )}>
-      {icon}
+      <div className={cn(
+        "flex items-center justify-center",
+        isActive && "text-cyan-400"
+      )}>
+        {icon}
+      </div>
       {!isCollapsed && (
         <span className="flex-1">{label}</span>
       )}
       {!isCollapsed && badge && (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-cyan-400 text-xs font-medium text-white">
           {badge}
         </span>
       )}
@@ -96,33 +104,36 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
 
   return (
     <aside className={cn(
-      "flex flex-col border-r bg-background",
+      "flex flex-col border-r border-slate-400/20 bg-gradient-to-b from-slate-900 to-gray-900 relative",
       collapsed ? "w-[60px]" : "w-64"
     )}>
+      {/* Liquid metal background effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-blue-500/3 to-cyan-400/5 pointer-events-none" />
+      
       <div className={cn(
-        "flex h-14 items-center border-b px-4",
+        "flex h-14 items-center border-b border-slate-400/20 px-4 relative z-10",
         collapsed ? "justify-center" : "justify-between"
       )}>
         {collapsed ? (
-          <BrainCircuit className="h-5 w-5 text-primary" />
+          <div className="relative">
+            <HolographicOrb size="xs" variant="liquid-cyan" />
+          </div>
         ) : (
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded bg-primary/10 flex items-center justify-center">
-              <BrainCircuit className="h-4 w-4 text-primary" />
-            </div>
-            <span className="font-bold text-lg">AI Platform</span>
+          <Link to="/" className="flex items-center gap-3">
+            <HolographicOrb size="xs" variant="liquid-cyan" />
+            <span className="font-bold text-lg bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">AI Platform</span>
           </Link>
         )}
         
         {!collapsed && (
-          <Button variant="ghost" size="icon" onClick={onToggleCollapse}>
+          <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="text-gray-300 hover:text-cyan-400 hover:bg-cyan-400/10">
             <PanelLeft className="h-5 w-5" />
           </Button>
         )}
       </div>
       
       <ScrollArea className="flex-1">
-        <div className={cn("flex flex-col gap-1 p-2", collapsed && "items-center")}>
+        <div className={cn("flex flex-col gap-1 p-2 relative z-10", collapsed && "items-center")}>
           {mainNavItems.map((item, i) => (
             <TooltipProvider key={i} delayDuration={0}>
               <Tooltip>
@@ -139,7 +150,7 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
                   </div>
                 </TooltipTrigger>
                 {collapsed && (
-                  <TooltipContent side="right">
+                  <TooltipContent side="right" className="bg-slate-800 border-slate-600 text-cyan-400">
                     {item.label}
                     {item.badge && <span className="ml-1 text-xs">({item.badge})</span>}
                   </TooltipContent>
@@ -148,7 +159,7 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
             </TooltipProvider>
           ))}
 
-          <div className={cn("my-2 border-t mx-2", collapsed && "w-4")}></div>
+          <div className={cn("my-2 border-t border-slate-400/20 mx-2", collapsed && "w-4")}></div>
           
           {secondaryNavItems.slice(0, showAll ? secondaryNavItems.length : (collapsed ? 2 : 3)).map((item, i) => (
             <TooltipProvider key={i} delayDuration={0}>
@@ -166,7 +177,7 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
                   </div>
                 </TooltipTrigger>
                 {collapsed && (
-                  <TooltipContent side="right">
+                  <TooltipContent side="right" className="bg-slate-800 border-slate-600 text-cyan-400">
                     {item.label}
                   </TooltipContent>
                 )}
@@ -177,7 +188,7 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
           {secondaryNavItems.length > 3 && !showAll && !collapsed && (
             <Button 
               variant="ghost" 
-              className="justify-start text-muted-foreground text-sm px-3 py-2 h-auto"
+              className="justify-start text-gray-400 text-sm px-3 py-2 h-auto hover:text-cyan-400 hover:bg-slate-700/50"
               onClick={() => setShowAll(true)}
             >
               Show more ({secondaryNavItems.length - 3})
@@ -187,7 +198,7 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
       </ScrollArea>
       
       <div className={cn(
-        "mt-auto border-t p-2",
+        "mt-auto border-t border-slate-400/20 p-2 relative z-10",
         collapsed ? "flex flex-col items-center" : ""
       )}>
         {!collapsed && (
@@ -201,12 +212,12 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link to="/profile">
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-300 hover:text-cyan-400 hover:bg-cyan-400/10">
                     <Settings className="h-5 w-5" />
                   </Button>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side={collapsed ? "right" : "top"}>Settings</TooltipContent>
+              <TooltipContent side={collapsed ? "right" : "top"} className="bg-slate-800 border-slate-600 text-cyan-400">Settings</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           
@@ -217,18 +228,18 @@ export function MainSidebar({ collapsed = false, onToggleCollapse }: MainSidebar
                   <ThemeToggle iconOnly={collapsed} />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side={collapsed ? "right" : "top"}>Theme</TooltipContent>
+              <TooltipContent side={collapsed ? "right" : "top"} className="bg-slate-800 border-slate-600 text-cyan-400">Theme</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-300 hover:text-cyan-400 hover:bg-cyan-400/10">
                   <HelpCircle className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side={collapsed ? "right" : "top"}>Help</TooltipContent>
+              <TooltipContent side={collapsed ? "right" : "top"} className="bg-slate-800 border-slate-600 text-cyan-400">Help</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

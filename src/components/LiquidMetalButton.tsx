@@ -20,7 +20,7 @@ export function LiquidMetalButton({
   children,
   ...props 
 }: LiquidMetalButtonProps) {
-  const baseClasses = "relative overflow-hidden transition-all duration-500 font-medium border-0 group";
+  const baseClasses = "relative overflow-hidden transition-all duration-300 font-medium border-0 group";
   
   const variantClasses = {
     alumix: "bg-gradient-conic from-gray-300 via-gray-100 via-white via-gray-200 to-gray-300 text-gray-800 hover:from-gray-200 hover:via-white hover:to-gray-200",
@@ -37,11 +37,11 @@ export function LiquidMetalButton({
   };
 
   const glowClasses = glow ? {
-    alumix: "shadow-[0_0_30px_rgba(156,163,175,0.6)] hover:shadow-[0_0_50px_rgba(156,163,175,0.8)]",
-    polarix: "shadow-[0_0_30px_rgba(34,211,238,0.6)] hover:shadow-[0_0_50px_rgba(34,211,238,0.8)]",
-    chroma: "shadow-[0_0_30px_rgba(147,51,234,0.6)] hover:shadow-[0_0_50px_rgba(147,51,234,0.8)]",
-    chrome: "shadow-[0_0_30px_rgba(100,116,139,0.6)] hover:shadow-[0_0_50px_rgba(100,116,139,0.8)]",
-    liquid: "shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:shadow-[0_0_50px_rgba(99,102,241,0.8)]"
+    alumix: "shadow-[0_0_30px_rgba(156,163,175,0.6)] hover:shadow-[0_0_40px_rgba(156,163,175,0.7)]",
+    polarix: "shadow-[0_0_30px_rgba(34,211,238,0.6)] hover:shadow-[0_0_40px_rgba(34,211,238,0.7)]",
+    chroma: "shadow-[0_0_30px_rgba(147,51,234,0.6)] hover:shadow-[0_0_40px_rgba(147,51,234,0.7)]",
+    chrome: "shadow-[0_0_30px_rgba(100,116,139,0.6)] hover:shadow-[0_0_40px_rgba(100,116,139,0.7)]",
+    liquid: "shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:shadow-[0_0_40px_rgba(99,102,241,0.7)]"
   } : {};
 
   return (
@@ -61,14 +61,8 @@ export function LiquidMetalButton({
         children
       ) : (
         <>
-          {/* Liquid metal shine effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-holographic-shine" />
-          
           {/* Metallic reflection overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none" />
-          
-          {/* Liquid flow animation */}
-          <div className="absolute inset-0 bg-gradient-conic from-transparent via-white/10 via-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-spin-slow pointer-events-none" />
           
           <span className="relative z-10 font-semibold">{children}</span>
         </>

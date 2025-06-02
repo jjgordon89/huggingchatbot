@@ -20,27 +20,21 @@ export function LiquidMetalCard({ children, className, variant = 'chroma', onCli
   return (
     <div 
       className={cn(
-        "relative rounded-3xl p-6 transition-all duration-500 group overflow-hidden",
-        "hover:scale-[1.02] hover:shadow-[0_0_60px_rgba(147,51,234,0.5)]",
+        "relative rounded-3xl p-6 transition-all duration-300 group overflow-hidden",
+        "hover:scale-[1.02] hover:shadow-[0_0_50px_rgba(147,51,234,0.4)]",
         variants[variant],
         onClick && "cursor-pointer",
         className
       )}
       onClick={onClick}
     >
-      {/* Liquid metal shine effect */}
-      <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 animate-holographic-shine pointer-events-none" />
-      
-      {/* Liquid flow animation */}
-      <div className="absolute inset-0 rounded-3xl bg-gradient-conic from-transparent via-white/5 via-transparent via-white/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-spin-slow pointer-events-none" />
-      
       {/* Content */}
       <div className="relative z-10">
         {children}
       </div>
       
       {/* Liquid border glow */}
-      <div className="absolute inset-0 rounded-3xl border border-purple-400/20 blur-sm group-hover:border-purple-300/40 transition-all duration-500 pointer-events-none" />
+      <div className="absolute inset-0 rounded-3xl border border-purple-400/20 blur-sm group-hover:border-purple-300/30 transition-all duration-300 pointer-events-none" />
     </div>
   );
 }
