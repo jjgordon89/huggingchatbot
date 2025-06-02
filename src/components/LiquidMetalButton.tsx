@@ -7,6 +7,7 @@ interface LiquidMetalButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   variant?: 'alumix' | 'polarix' | 'chroma' | 'chrome' | 'liquid';
   size?: 'sm' | 'md' | 'lg';
   glow?: boolean;
+  asChild?: boolean;
   children: React.ReactNode;
 }
 
@@ -14,6 +15,7 @@ export function LiquidMetalButton({
   variant = 'chroma', 
   size = 'md', 
   glow = true,
+  asChild = false,
   className,
   children,
   ...props 
@@ -44,6 +46,7 @@ export function LiquidMetalButton({
 
   return (
     <Button
+      asChild={asChild}
       className={cn(
         baseClasses,
         variantClasses[variant],
@@ -54,16 +57,22 @@ export function LiquidMetalButton({
       )}
       {...props}
     >
-      {/* Liquid metal shine effect */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-holographic-shine" />
-      
-      {/* Metallic reflection overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none" />
-      
-      {/* Liquid flow animation */}
-      <div className="absolute inset-0 bg-gradient-conic from-transparent via-white/10 via-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-spin-slow pointer-events-none" />
-      
-      <span className="relative z-10 font-semibold">{children}</span>
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {/* Liquid metal shine effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-holographic-shine" />
+          
+          {/* Metallic reflection overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none" />
+          
+          {/* Liquid flow animation */}
+          <div className="absolute inset-0 bg-gradient-conic from-transparent via-white/10 via-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-spin-slow pointer-events-none" />
+          
+          <span className="relative z-10 font-semibold">{children}</span>
+        </>
+      )}
     </Button>
   );
 }
