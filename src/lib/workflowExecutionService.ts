@@ -1,4 +1,4 @@
-import { Workflow, WorkflowNode } from './workflowTypes';
+import { Workflow, WorkflowNode, WorkflowExecutionResult } from './workflowTypes';
 
 /**
  * Types for node execution lifecycle and results
@@ -10,13 +10,6 @@ interface NodeExecutionResult {
   executionTime?: string;
 }
 
-interface WorkflowExecutionResult {
-  success: boolean;
-  output?: Record<string, any>;
-  error?: string;
-  nodeResults?: Record<string, NodeExecutionResult>;
-  executionTime: string;
-}
 
 interface ExecutionCallbacks {
   onNodeStart?: (nodeId: string) => void;
