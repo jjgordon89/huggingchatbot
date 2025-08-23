@@ -69,7 +69,7 @@
     "react-router-dom": "^6.26.2",
     "react-syntax-highlighter": "^15.6.1",
     "reactflow": "^11.11.4",
-    "recharts": "^2.12.7",
+    "recharts": "^2.15.4",
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",

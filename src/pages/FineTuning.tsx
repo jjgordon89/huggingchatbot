@@ -37,6 +37,7 @@ import {
   BrainCircuit,
   BarChart2,
   Settings,
+  Activity,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -52,7 +53,9 @@ import {
 import { NewFineTuningJobDialog } from '@/components/fine-tuning/NewFineTuningJobDialog';
 import { FineTuningJobDetails } from '@/components/fine-tuning/FineTuningJobDetails';
 import { FineTunedModelCard } from '@/components/fine-tuning/FineTunedModelCard';
+import { FineTuningMonitor } from '@/components/fine-tuning/FineTuningMonitor';
 import { useToast } from '@/hooks/use-toast';
+import { workflowValidationService } from '@/lib/workflowValidationService';
 
 import {
   FineTuningJob,
@@ -62,6 +65,8 @@ import {
   cancelFineTuningJob,
   deleteFineTuningJob,
   deleteFineTunedModel,
+  createFineTuningWorkflow,
+  validateDatasetForFineTuning
 } from '@/lib/fineTuningService';
 
 export default function FineTuning() {
@@ -72,6 +77,7 @@ export default function FineTuning() {
   const [models, setModels] = useState<FineTunedModel[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [showNewJobDialog, setShowNewJobDialog] = useState(false);
+  const [showMonitorDialog, setShowMonitorDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{id: string, type: 'job' | 'model', name: string} | null>(null);
 
@@ -272,7 +278,12 @@ export default function FineTuning() {
                   <Card 
                     key={job.id} 
                     className={`transition-shadow hover:shadow-md cursor-pointer ${selectedJobId === job.id ? 'border-primary/50 shadow-sm' : ''}`}
-                    onClick={() => setSelectedJobId(job.id)}
+                    onClick={() => {
+                      setSelectedJobId(job.id);
+                      if (job.status === 'running') {
+                        setShowMonitorDialog(true);
+                      }
+                    }}
                   >
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
@@ -285,7 +296,22 @@ export default function FineTuning() {
                             Based on {job.baseModelId.split('/').pop()}
                           </CardDescription>
                         </div>
-                        {getStatusBadge(job.status)}
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(job.status)}
+                          {job.status === 'running' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedJobId(job.id);
+                                setShowMonitorDialog(true);
+                              }}
+                            >
+                              <Activity className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pb-3">
@@ -433,7 +459,7 @@ export default function FineTuning() {
       </div>
       
       {/* Job details dialog */}
-      {selectedJobId && (
+      {selectedJobId && !showMonitorDialog && (
         <Dialog open={!!selectedJobId} onOpenChange={(open) => !open && setSelectedJobId(null)}>
           <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden">
             <FineTuningJobDetails 
@@ -453,6 +479,23 @@ export default function FineTuning() {
                 setDeleteDialogOpen(true);
               }}
             />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Training Monitor Dialog */}
+      {selectedJobId && showMonitorDialog && (
+        <Dialog open={showMonitorDialog} onOpenChange={setShowMonitorDialog}>
+          <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
+            <div className="p-6 flex-1 overflow-hidden">
+              <FineTuningMonitor
+                job={jobs.find(j => j.id === selectedJobId)!}
+                onJobUpdate={(updatedJob) => {
+                  setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
+                }}
+                className="h-full"
+              />
+            </div>
           </DialogContent>
         </Dialog>
       )}

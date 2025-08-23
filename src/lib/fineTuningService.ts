@@ -1,5 +1,7 @@
 import { HuggingFaceModel } from './api';
 import { Document } from './api';
+import { workflowValidationService } from './workflowValidationService';
+import { Workflow } from './workflowTypes';
 
 // Fine-tuning job status
 export type FineTuningStatus = 
@@ -73,11 +75,28 @@ export interface FineTunedModel {
   baseModelId: string;       // ID of base model used for fine-tuning
   workspaceId: string;       // Workspace the model belongs to
   jobId: string;             // ID of the fine-tuning job that created this model
+  provider: 'openai' | 'huggingface' | 'local' | 'perplexity' | 'custom';
+  apiEndpoint?: string;      // Custom API endpoint for the fine-tuned model
+  apiKey?: string;           // API key for accessing the model (encrypted)
   createdAt: Date;
   size: number;              // Size of model in MB
   metrics?: {                // Performance metrics
     accuracy?: number;
     perplexity?: number;
+    bleuScore?: number;
+    rougeScore?: number;
+  };
+  capabilities: {
+    maxTokens: number;
+    supportedTasks: string[];
+    contextWindow: number;
+  };
+  deploymentConfig?: {
+    isDeployed: boolean;
+    deploymentUrl?: string;
+    deploymentStatus: 'pending' | 'deployed' | 'failed' | 'scaling';
+    replicas?: number;
+    autoScaling?: boolean;
   };
   // Included to match HuggingFaceModel interface structure
   task?: string;
@@ -458,80 +477,228 @@ const simulateJobProgress = (jobId: string) => {
         }
         break;
         
-      case 'running':
-        // Update progress during training
-        if (job.progress >= 99) {
-          // Simulation: 90% success rate
-          const success = Math.random() < 0.9;
-          
-          if (success) {
-            // Create the fine-tuned model
-            const ftModelId = `ft-model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        case 'running':
+          // Update progress during training
+          if (job.progress >= 99) {
+            // Simulation: 90% success rate
+            const success = Math.random() < 0.9;
             
-            const metrics = {
-              trainingLoss: Math.random() * 0.5 + 0.1,
-              validationLoss: Math.random() * 0.7 + 0.2,
-              accuracy: Math.random() * 0.3 + 0.7,
-              perplexity: Math.random() * 10 + 5
-            };
-            
-            const fineTunedModel: FineTunedModel = {
-              id: ftModelId,
-              name: job.name,
-              description: job.description,
-              baseModelId: job.baseModelId,
-              workspaceId: job.workspaceId,
-              jobId: job.id,
-              createdAt: new Date(),
-              size: Math.floor(Math.random() * 500) + 100, // Size in MB
-              metrics: {
-                accuracy: metrics.accuracy,
-                perplexity: metrics.perplexity
-              }
-            };
-            
-            // Add the model to the list
-            fineTunedModels.push(fineTunedModel);
-            
-            // Update the job
-            fineTuningJobs[jobIndex] = {
-              ...job,
-              status: 'succeeded',
-              progress: 100,
-              updatedAt: new Date(),
-              finishedAt: new Date(),
-              metrics,
-              fineTunedModel
-            };
+            if (success) {
+              // Create the fine-tuned model
+              const ftModelId = `ft-model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+              
+              const metrics = {
+                trainingLoss: Math.random() * 0.5 + 0.1,
+                validationLoss: Math.random() * 0.7 + 0.2,
+                accuracy: Math.random() * 0.3 + 0.7,
+                perplexity: Math.random() * 10 + 5
+              };
+              
+              const fineTunedModel: FineTunedModel = {
+                id: ftModelId,
+                name: job.name,
+                description: job.description,
+                baseModelId: job.baseModelId,
+                workspaceId: job.workspaceId,
+                jobId: job.id,
+                provider: job.baseModelId.includes('openai') ? 'openai' : 'huggingface',
+                createdAt: new Date(),
+                size: Math.floor(Math.random() * 500) + 100,
+                metrics: {
+                  accuracy: metrics.accuracy,
+                  perplexity: metrics.perplexity
+                },
+                capabilities: {
+                  maxTokens: job.hyperparams.maxSequenceLength,
+                  supportedTasks: ['text-generation', 'completion'],
+                  contextWindow: job.hyperparams.maxSequenceLength
+                },
+                deploymentConfig: {
+                  isDeployed: false,
+                  deploymentStatus: 'pending'
+                }
+              };
+              
+              // Add the model to the list
+              fineTunedModels.push(fineTunedModel);
+              
+              // Update the job
+              fineTuningJobs[jobIndex] = {
+                ...job,
+                status: 'succeeded',
+                progress: 100,
+                updatedAt: new Date(),
+                finishedAt: new Date(),
+                metrics,
+                fineTunedModel
+              };
+            } else {
+              // Failed job
+              fineTuningJobs[jobIndex] = {
+                ...job,
+                status: 'failed',
+                progress: job.progress,
+                updatedAt: new Date(),
+                finishedAt: new Date(),
+                errorMessage: 'Training failed due to convergence issues. Try adjusting hyperparameters.'
+              };
+            }
           } else {
-            // Failed job
+            // Increment progress
+            const increment = Math.random() * 2 + 1; // 1-3% progress per update
             fineTuningJobs[jobIndex] = {
               ...job,
-              status: 'failed',
-              progress: job.progress,
-              updatedAt: new Date(),
-              finishedAt: new Date(),
-              errorMessage: 'Training failed due to convergence issues. Try adjusting hyperparameters.'
+              progress: Math.min(99, job.progress + increment),
+              updatedAt: new Date()
             };
           }
-        } else {
-          // Increment progress
-          const increment = Math.random() * 2 + 1; // 1-3% progress per update
-          fineTuningJobs[jobIndex] = {
-            ...job,
-            progress: Math.min(99, job.progress + increment),
-            updatedAt: new Date()
-          };
-        }
-        break;
-        
-      default:
-        clearInterval(updateInterval);
-        return;
+          break;
+          
+        default:
+          clearInterval(updateInterval);
+          return;
+      }
+      
+      saveToStorage();
+    }, 3000); // Update every 3 seconds
+  };
+
+// Enhanced validation for fine-tuning datasets
+export const validateDatasetForFineTuning = (
+  documents: Document[],
+  datasetType: DatasetConfig['type']
+): { valid: boolean; errors: string[]; warnings: string[]; estimatedSamples: number } => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  let estimatedSamples = 0;
+
+  if (documents.length === 0) {
+    errors.push('No documents provided for training');
+    return { valid: false, errors, warnings, estimatedSamples };
+  }
+
+  // Check minimum document requirements
+  if (documents.length < 5) {
+    warnings.push('Very few documents provided. Consider adding more for better results.');
+  }
+
+  // Estimate samples based on document content
+  let totalContentLength = 0;
+  documents.forEach(doc => {
+    if (doc.content) {
+      totalContentLength += doc.content.length;
     }
-    
-    saveToStorage();
-  }, 3000); // Update every 3 seconds
+  });
+
+  // Rough estimation based on content length and dataset type
+  switch (datasetType) {
+    case 'instruction':
+      estimatedSamples = Math.floor(totalContentLength / 500);
+      break;
+    case 'chat':
+      estimatedSamples = Math.floor(totalContentLength / 800);
+      break;
+    case 'completion':
+      estimatedSamples = Math.floor(totalContentLength / 300);
+      break;
+    case 'classification':
+      estimatedSamples = Math.floor(totalContentLength / 200);
+      break;
+  }
+
+  // Minimum sample requirements
+  const minSamples = datasetType === 'classification' ? 50 : 20;
+  if (estimatedSamples < minSamples) {
+    errors.push(`Estimated ${estimatedSamples} samples, but need at least ${minSamples} for ${datasetType} fine-tuning`);
+  }
+
+  // Maximum reasonable samples for demo
+  if (estimatedSamples > 50000) {
+    warnings.push('Very large dataset detected. Training may take significant time.');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    estimatedSamples: Math.max(estimatedSamples, 1)
+  };
+};
+
+// Integration with workflow system
+export const createFineTuningWorkflow = (
+  job: FineTuningJob,
+  options: {
+    includeValidation?: boolean;
+    includeDeployment?: boolean;
+    notificationSettings?: {
+      onComplete?: boolean;
+      onFailure?: boolean;
+      webhookUrl?: string;
+    };
+  } = {}
+): Workflow => {
+  const nodes = [
+    {
+      id: 'trigger-1',
+      type: 'trigger' as const,
+      position: { x: 100, y: 100 },
+      data: {
+        label: 'Start Fine-Tuning',
+        triggerType: 'manual',
+        payload: { jobId: job.id }
+      }
+    },
+    {
+      id: 'validate-data-1',
+      type: 'function' as const,
+      position: { x: 300, y: 100 },
+      data: {
+        label: 'Validate Dataset',
+        functionName: 'validateDataset',
+        code: `
+          // Validate dataset quality and format
+          const { jobId } = context;
+          const job = getFineTuningJob(jobId);
+          
+          if (!job) throw new Error('Job not found');
+          
+          // Perform validation checks
+          const validation = validateDatasetForFineTuning(job.dataset.documentIds, job.dataset.config.type);
+          
+          if (!validation.valid) {
+            throw new Error('Dataset validation failed: ' + validation.errors.join(', '));
+          }
+          
+          return {
+            status: 'valid',
+            estimatedSamples: validation.estimatedSamples,
+            warnings: validation.warnings
+          };
+        `
+      }
+    }
+  ];
+
+  const edges = [
+    {
+      id: 'edge-1',
+      source: 'trigger-1',
+      target: 'validate-data-1',
+      type: 'smoothstep'
+    }
+  ];
+
+  return {
+    id: `ft-workflow-${job.id}`,
+    name: `Fine-Tuning Workflow: ${job.name}`,
+    description: `Automated workflow for fine-tuning job ${job.name}`,
+    category: 'Fine-Tuning',
+    nodes,
+    edges,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
 };
 
 // Check if the service has been initialized
