@@ -63,9 +63,17 @@ export interface WorkflowTemplate {
 
 export interface WorkflowExecutionResult {
   success: boolean;
-  output: any;
+  output?: Record<string, any>;
   error?: string;
+  nodeResults?: Record<string, any>;
+  executionTime: string;
   logs?: string[];
+  stats?: {
+    totalExecutionTime: number;
+    nodesExecuted: number;
+    errorsEncountered: number;
+    successfulNodes: number;
+  };
 }
 
 export interface WorkflowVariable {
