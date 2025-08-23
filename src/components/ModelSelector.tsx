@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, ChevronsUpDown, Cpu, Zap, Sparkles, BrainCircuit, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useChat } from '@/context/ChatContext';
+import { useOpenAICompatible } from '@/hooks/useOpenAICompatible';
 import { HuggingFaceModel } from '@/lib/api';
 
 // List of supported models with additional metadata
@@ -492,6 +493,19 @@ export const SUPPORTED_MODELS = [
     strengths: ['Local', 'Code-focused'],
     icon: Server,
     apiKeyRequired: false
+  },
+
+  // OpenAI Compatible Models - these are placeholders, actual models loaded dynamically
+  {
+    id: 'openai-compatible-placeholder',
+    name: 'OpenAI Compatible',
+    description: 'Custom models using OpenAI API format',
+    category: 'custom',
+    provider: 'OpenAI Compatible',
+    contextLength: 4096,
+    strengths: ['Custom', 'Self-hosted'],
+    icon: Server,
+    apiKeyRequired: false
   }
 ];
 
@@ -503,20 +517,30 @@ export type ModelSelectorProps = {
 
 export function ModelSelector({ className, isCompact = false, onlyAvailable = false }: ModelSelectorProps) {
   const { activeModel, setActiveModel, availableApiKeys } = useChat();
+  const { getSelectorModels } = useOpenAICompatible();
   const [open, setOpen] = useState(false);
+  const [allModels, setAllModels] = useState(SUPPORTED_MODELS);
+
+  // Combine built-in models with OpenAI Compatible models
+  useEffect(() => {
+    const openAICompatibleModels = getSelectorModels();
+    // Filter out the placeholder and add real models
+    const builtInModels = SUPPORTED_MODELS.filter(m => m.id !== 'openai-compatible-placeholder');
+    setAllModels([...builtInModels, ...openAICompatibleModels]);
+  }, [getSelectorModels]);
 
   // Filter models based on available API keys if onlyAvailable is true
   const filteredModels = onlyAvailable 
-    ? SUPPORTED_MODELS.filter(model => 
+    ? allModels.filter(model => 
         !model.apiKeyRequired || 
         (model.apiKeyRequired && availableApiKeys[model.provider.toLowerCase()]))
-    : SUPPORTED_MODELS;
+    : allModels;
   
-  const activeModelData = SUPPORTED_MODELS.find(m => m.id === activeModel.id) || SUPPORTED_MODELS[0];
+  const activeModelData = allModels.find(m => m.id === activeModel.id) || allModels[0];
   const Icon = activeModelData.icon || Cpu;
 
   const handleSelectModel = (modelId: string) => {
-    const selectedModel = SUPPORTED_MODELS.find(m => m.id === modelId);
+    const selectedModel = allModels.find(m => m.id === modelId);
     if (selectedModel) {
       setActiveModel({
         id: selectedModel.id,
@@ -665,6 +689,19 @@ export function ModelSelector({ className, isCompact = false, onlyAvailable = fa
                     />
                   ))}
               </CommandGroup>
+              <CommandGroup heading="OpenAI Compatible Models">
+                {filteredModels
+                  .filter(model => model.provider === 'OpenAI Compatible')
+                  .map((model) => (
+                    <ModelCommandItem
+                      key={model.id}
+                      model={model}
+                      activeModelId={activeModel.id}
+                      onSelect={handleSelectModel}
+                      availableApiKeys={availableApiKeys}
+                    />
+                  ))}
+              </CommandGroup>
               <CommandGroup heading="Ollama Models">
                 {filteredModels
                   .filter(model => model.provider === 'Ollama')
@@ -687,7 +724,7 @@ export function ModelSelector({ className, isCompact = false, onlyAvailable = fa
 }
 
 type ModelCommandItemProps = {
-  model: (typeof SUPPORTED_MODELS)[0];
+  model: (typeof SUPPORTED_MODELS)[0] | any; // Allow OpenAI Compatible models
   activeModelId: string;
   onSelect: (id: string) => void;
   availableApiKeys: Record<string, boolean>;

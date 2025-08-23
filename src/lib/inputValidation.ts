@@ -35,6 +35,8 @@ export class InputValidator {
         return key.startsWith('sk-or-');
       case 'perplexity':
         return key.startsWith('pplx-');
+      case 'openai-compatible':
+        return key.length >= 3; // Allow any key for custom endpoints
       default:
         return key.length >= 10;
     }

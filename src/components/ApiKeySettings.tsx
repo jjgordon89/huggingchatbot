@@ -7,6 +7,7 @@ import { OllamaApiKeyForm } from '@/components/OllamaApiKeyForm';
 import { OllamaModels } from '@/components/OllamaModels';
 import { OpenRouterModels } from '@/components/OpenRouterModels';
 import { ApiProviderConfig } from '@/components/api-keys/ApiProviderConfig';
+import { OpenAICompatibleConfig } from '@/components/api-keys/OpenAICompatibleConfig';
 import { Workspace } from '@/context/WorkspaceContext';
 import {
   AlarmClock,
@@ -110,6 +111,16 @@ const API_PROVIDERS: ApiProviderInfo[] = [
     requiresKey: false,
     getKeyLink: '',
     pricingInfo: 'Free - runs locally'
+  },
+  {
+    id: 'openai-compatible',
+    name: 'OpenAI Compatible',
+    description: 'Custom models using OpenAI API format (self-hosted, local servers)',
+    website: '',
+    icon: Server,
+    requiresKey: false,
+    getKeyLink: '',
+    pricingInfo: 'Configure your own endpoints'
   }
 ];
 
@@ -185,7 +196,7 @@ export function ApiKeySettings({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-7 w-full">
+        <TabsList className="grid grid-cols-8 w-full">
           {API_PROVIDERS.map(provider => (
             <TabsTrigger
               key={provider.id}
@@ -224,6 +235,9 @@ export function ApiKeySettings({
               {provider.id === 'ollama' ? (
                 // Special case for Ollama with its own form
                 <OllamaApiKeyForm />
+              ) : provider.id === 'openai-compatible' ? (
+                // Special case for OpenAI Compatible models
+                <OpenAICompatibleConfig />
               ) : (
                 <ApiProviderConfig
                   provider={provider}
@@ -249,6 +263,9 @@ export function ApiKeySettings({
                     // The actual model loading happens inside the OpenRouterModels component
                     // which uses listOpenRouterModels and addOpenRouterModels
                   }} />
+                ) : provider.id === 'openai-compatible' ? (
+                  // No additional models section for OpenAI Compatible as it's handled in the config
+                  null
                 ) : (
                   <>
                     <h4 className="font-medium mb-2">Available Models</h4>
