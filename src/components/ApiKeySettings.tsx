@@ -1,29 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { useChat } from '@/context/ChatContext';
+import { ApiProvider } from '@/context/ChatContext';
+import { SUPPORTED_MODELS } from '@/components/ModelSelector';
+import { OllamaApiKeyForm } from '@/components/OllamaApiKeyForm';
+import { OllamaModels } from '@/components/OllamaModels';
+import { OpenRouterModels } from '@/components/OpenRouterModels';
+import { ApiProviderConfig } from '@/components/api-keys/ApiProviderConfig';
+import { Workspace } from '@/context/WorkspaceContext';
 import {
-  AlertTriangle,
-  CheckCircle,
-  Key,
-  Lock,
   AlarmClock,
   Sparkles,
   BrainCircuit,
   Globe,
-  RefreshCw,
   Server
 } from 'lucide-react';
-import { SUPPORTED_MODELS } from '@/components/ModelSelector';
-import { ApiProvider } from '@/context/ChatContext';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { OllamaApiKeyForm } from '@/components/OllamaApiKeyForm';
-import { OllamaModels } from '@/components/OllamaModels';
-import { OpenRouterApiKeyForm } from '@/components/OpenRouterApiKeyForm';
-import { OpenRouterModels } from '@/components/OpenRouterModels';
-import { Workspace } from '@/context/WorkspaceContext';
 
 interface ApiProviderInfo {
   id: ApiProvider;
@@ -126,8 +117,6 @@ export function ApiKeySettings({
     }, {});
   });
   
-  const [isVisible, setIsVisible] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState('hugging face');
 
   // Update the apiKeys state if the workspace changes
@@ -144,13 +133,7 @@ export function ApiKeySettings({
     setApiKeys(prev => ({ ...prev, [provider]: value }));
   };
 
-  const handleToggleVisibility = (provider: string) => {
-    setIsVisible(prev => ({ ...prev, [provider]: !prev[provider] }));
-  };
-
   const handleSaveKey = async (provider: ApiProvider) => {
-    setIsSubmitting(prev => ({ ...prev, [provider]: true }));
-    
     try {
       if (onUpdateKeys) {
         // Save to workspace settings
@@ -159,11 +142,9 @@ export function ApiKeySettings({
         // Save to global settings
         setApiKey(apiKeys[provider], provider);
       }
-      setIsSubmitting(prev => ({ ...prev, [provider]: false }));
       return true;
     } catch (error) {
       console.error(`Error saving ${provider} API key:`, error);
-      setIsSubmitting(prev => ({ ...prev, [provider]: false }));
       return false;
     }
   };
@@ -231,87 +212,14 @@ export function ApiKeySettings({
               {provider.id === 'ollama' ? (
                 // Special case for Ollama with its own form
                 <OllamaApiKeyForm />
-              ) : provider.requiresKey ? (
-                <div className="space-y-4 mt-2">
-                  <div className="space-y-2">
-                    <Label htmlFor={`${provider.id}-api-key`}>API Key</Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          id={`${provider.id}-api-key`}
-                          type={isVisible[provider.id] ? "text" : "password"}
-                          value={apiKeys[provider.id] || ''}
-                          onChange={(e) => handleKeyChange(provider.id, e.target.value)}
-                          placeholder={`Enter your ${provider.name} API key`}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3 py-2"
-                          onClick={() => handleToggleVisibility(provider.id)}
-                        >
-                          <Lock className="h-4 w-4" />
-                          <span className="sr-only">Toggle visibility</span>
-                        </Button>
-                      </div>
-                      <Button
-                        onClick={() => handleSaveKey(provider.id as ApiProvider)}
-                        disabled={isSubmitting[provider.id] || !apiKeys[provider.id]}
-                      >
-                        {isSubmitting[provider.id] ? (
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Key className="h-4 w-4 mr-2" />
-                        )}
-                        Save Key
-                      </Button>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <a
-                        href={provider.getKeyLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        Get an API key
-                      </a>
-                      {isKeyAvailable(provider.id) ? (
-                        <div className="flex items-center text-green-500">
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                          <span>API key configured</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center text-amber-500">
-                          <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                          <span>No API key set</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {!isKeyAvailable(provider.id) && (
-                    <Alert className="bg-amber-50 text-amber-800 border-amber-200">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>API Key Required</AlertTitle>
-                      <AlertDescription>
-                        An API key is required to use {provider.name} models.
-                        {provider.freeCredits && (
-                          <span className="font-medium block mt-1">{provider.freeCredits}</span>
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
               ) : (
-                <Alert className="bg-blue-50 text-blue-800 border-blue-200 mt-2">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertTitle>No API Key Required</AlertTitle>
-                  <AlertDescription>
-                    {provider.name} does not require an API key. {provider.pricingInfo}
-                  </AlertDescription>
-                </Alert>
+                <ApiProviderConfig
+                  provider={provider}
+                  apiKey={apiKeys[provider.id] || ''}
+                  isKeyAvailable={isKeyAvailable(provider.id)}
+                  onKeyChange={(value) => handleKeyChange(provider.id, value)}
+                  onSaveKey={() => handleSaveKey(provider.id as ApiProvider)}
+                />
               )}
 
 
