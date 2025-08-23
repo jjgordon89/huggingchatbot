@@ -183,9 +183,9 @@ export function OpenAICompatibleConfig({ onModelsUpdate }: OpenAICompatibleConfi
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="animate-fade-up">
           <h3 className="text-lg font-medium">OpenAI Compatible Models</h3>
           <p className="text-sm text-muted-foreground">
             Add custom models that use OpenAI's API format (self-hosted, local servers, etc.)
@@ -193,7 +193,7 @@ export function OpenAICompatibleConfig({ onModelsUpdate }: OpenAICompatibleConfi
         </div>
         <Button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 hover-scale"
         >
           <Plus className="h-4 w-4" />
           Add Model
@@ -202,7 +202,7 @@ export function OpenAICompatibleConfig({ onModelsUpdate }: OpenAICompatibleConfi
 
       {/* Add/Edit Model Form */}
       {showForm && (
-        <Card>
+        <Card className="animate-scale-in backdrop-blur-sm border-border/50 shadow-glass">{}
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Server className="h-5 w-5" />
@@ -307,8 +307,8 @@ export function OpenAICompatibleConfig({ onModelsUpdate }: OpenAICompatibleConfi
         <div className="space-y-4">
           <h4 className="font-medium">Configured Models</h4>
           {models.map((model) => (
-            <Card key={model.id}>
-              <CardContent className="pt-6">
+            <Card key={model.id} className="hover-scale backdrop-blur-sm border-border/50 shadow-glass animate-fade-in">
+              <CardContent className="pt-6">{}
                 <div className="flex items-start justify-between">
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
