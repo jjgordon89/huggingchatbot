@@ -49,35 +49,47 @@ const API_PROVIDERS: ApiProviderInfo[] = [
   {
     id: 'openai',
     name: 'OpenAI',
-    description: 'Advanced AI models including GPT-3.5 and GPT-4',
+    description: 'Advanced AI models including GPT-5 and GPT-4.1',
     website: 'https://openai.com',
     icon: Sparkles,
     requiresKey: true,
     getKeyLink: 'https://platform.openai.com/api-keys',
     freeCredits: '$5 free credit for new users',
-    contextWindow: 'Up to 128K tokens with GPT-4 Turbo',
+    contextWindow: 'Up to 128K tokens',
     pricingInfo: 'Pay-as-you-go based on tokens processed'
   },
   {
     id: 'anthropic',
     name: 'Anthropic',
-    description: 'Powerful Claude AI models with extensive context windows',
+    description: 'Powerful Claude 4 and Claude 3 AI models with extensive context windows',
     website: 'https://anthropic.com',
     icon: AlarmClock,
     requiresKey: true,
     getKeyLink: 'https://console.anthropic.com/settings/keys',
-    contextWindow: 'Up to 200K tokens with Claude 3',
+    contextWindow: 'Up to 200K tokens with Claude 4',
     pricingInfo: 'Pay-as-you-go based on tokens processed'
   },
   {
     id: 'google',
     name: 'Google AI',
-    description: 'Google\'s Gemini models for advanced reasoning',
+    description: 'Google\'s Gemini models for advanced reasoning with long context',
     website: 'https://ai.google.dev/',
     icon: Globe,
     requiresKey: true,
     getKeyLink: 'https://aistudio.google.com/app/apikey',
+    contextWindow: 'Up to 1M tokens',
     pricingInfo: 'Free and paid tiers available'
+  },
+  {
+    id: 'perplexity',
+    name: 'Perplexity',
+    description: 'Real-time web search with AI reasoning capabilities',
+    website: 'https://perplexity.ai',
+    icon: Server,
+    requiresKey: true,
+    getKeyLink: 'https://perplexity.ai/settings/api',
+    contextWindow: 'Up to 127K tokens',
+    pricingInfo: 'Pay-as-you-go for web-enabled AI'
   },
   {
     id: 'openrouter',
@@ -173,7 +185,7 @@ export function ApiKeySettings({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-7 w-full">
           {API_PROVIDERS.map(provider => (
             <TabsTrigger
               key={provider.id}

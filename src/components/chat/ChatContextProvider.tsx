@@ -27,7 +27,7 @@ export interface Chat {
   lastMessage?: string;
 }
 
-export type ApiProvider = 'hugging face' | 'openai' | 'anthropic' | 'google' | 'openrouter' | 'ollama';
+export type ApiProvider = 'hugging face' | 'openai' | 'anthropic' | 'google' | 'openrouter' | 'ollama' | 'perplexity';
 
 // Context type definition
 interface ChatContextType {

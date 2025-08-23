@@ -33,6 +33,8 @@ export class InputValidator {
         return key.length > 20; // Basic length check
       case 'openrouter':
         return key.startsWith('sk-or-');
+      case 'perplexity':
+        return key.startsWith('pplx-');
       default:
         return key.length >= 10;
     }

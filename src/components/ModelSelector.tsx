@@ -201,69 +201,238 @@ export const SUPPORTED_MODELS = [
     strengths: ['High-performance', 'Data analysis'],
     icon: BrainCircuit
   },
+  // Claude 4 Models (Latest - RECOMMENDED)
   { 
-    id: 'anthropic/claude-3-haiku', 
-    name: 'Claude 3 Haiku', 
-    description: 'Anthropic\'s fastest and most compact model',
+    id: 'claude-opus-4-20250514', 
+    name: 'Claude 4 Opus', 
+    description: 'Most capable and intelligent model with superior reasoning',
     category: 'proprietary',
     provider: 'Anthropic',
     contextLength: 200000,
-    strengths: ['Fast', 'Efficient'],
-    icon: Zap,
-    apiKeyRequired: true
-  },
-  { 
-    id: 'anthropic/claude-3-sonnet', 
-    name: 'Claude 3 Sonnet', 
-    description: 'Balanced performance and intelligence from Anthropic',
-    category: 'proprietary',
-    provider: 'Anthropic',
-    contextLength: 200000,
-    strengths: ['Balanced', 'Nuanced'],
-    icon: Sparkles,
-    apiKeyRequired: true
-  },
-  { 
-    id: 'anthropic/claude-3-opus', 
-    name: 'Claude 3 Opus', 
-    description: 'Anthropic\'s most powerful model for complex tasks',
-    category: 'proprietary',
-    provider: 'Anthropic',
-    contextLength: 200000,
-    strengths: ['Powerful', 'Complex reasoning'],
+    strengths: ['Superior reasoning', 'Most capable'],
     icon: BrainCircuit,
     apiKeyRequired: true
   },
   { 
-    id: 'openai/gpt-3.5-turbo', 
-    name: 'GPT-3.5 Turbo', 
-    description: 'OpenAI\'s efficient general-purpose model',
+    id: 'claude-sonnet-4-20250514', 
+    name: 'Claude 4 Sonnet', 
+    description: 'High-performance model with exceptional reasoning and efficiency',
+    category: 'proprietary',
+    provider: 'Anthropic',
+    contextLength: 200000,
+    strengths: ['High-performance', 'Exceptional reasoning'],
+    icon: BrainCircuit,
+    apiKeyRequired: true
+  },
+  { 
+    id: 'claude-3-5-haiku-20241022', 
+    name: 'Claude 3.5 Haiku', 
+    description: 'Fastest model for quick responses with vision capabilities',
+    category: 'proprietary',
+    provider: 'Anthropic',
+    contextLength: 200000,
+    strengths: ['Fastest', 'Vision'],
+    icon: Zap,
+    apiKeyRequired: true
+  },
+
+  // Claude 3 Models (Legacy - use with caution)
+  { 
+    id: 'claude-3-7-sonnet-20250219', 
+    name: 'Claude 3.7 Sonnet', 
+    description: 'Extended thinking model (being superseded by Claude 4)',
+    category: 'proprietary',
+    provider: 'Anthropic',
+    contextLength: 200000,
+    strengths: ['Extended thinking', 'Legacy'],
+    icon: Sparkles,
+    apiKeyRequired: true
+  },
+  { 
+    id: 'claude-3-5-sonnet-20241022', 
+    name: 'Claude 3.5 Sonnet', 
+    description: 'Previous intelligent model (replaced by Sonnet 4)',
+    category: 'proprietary',
+    provider: 'Anthropic',
+    contextLength: 200000,
+    strengths: ['Intelligent', 'Previous generation'],
+    icon: Sparkles,
+    apiKeyRequired: true
+  },
+  { 
+    id: 'claude-3-opus-20240229', 
+    name: 'Claude 3 Opus', 
+    description: 'Powerful but older than Claude 4',
+    category: 'proprietary',
+    provider: 'Anthropic',
+    contextLength: 200000,
+    strengths: ['Powerful', 'Older generation'],
+    icon: BrainCircuit,
+    apiKeyRequired: true
+  },
+
+  // GPT-5 Models (Latest)
+  { 
+    id: 'gpt-5-2025-08-07', 
+    name: 'GPT-5', 
+    description: 'OpenAI\'s flagship model with superior performance',
     category: 'proprietary',
     provider: 'OpenAI',
-    contextLength: 16385,
-    strengths: ['Fast', 'General-purpose'],
+    contextLength: 128000,
+    strengths: ['Flagship', 'Superior performance'],
+    icon: BrainCircuit,
+    apiKeyRequired: true
+  },
+  { 
+    id: 'gpt-5-mini-2025-08-07', 
+    name: 'GPT-5 Mini', 
+    description: 'Faster, more cost-efficient version of GPT-5',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Fast', 'Cost-efficient'],
     icon: Zap,
     apiKeyRequired: true
   },
   { 
-    id: 'openai/gpt-4-turbo', 
-    name: 'GPT-4 Turbo', 
-    description: 'OpenAI\'s advanced general-purpose model',
+    id: 'gpt-5-nano-2025-08-07', 
+    name: 'GPT-5 Nano', 
+    description: 'Fastest, cheapest version for summarization and classification',
     category: 'proprietary',
     provider: 'OpenAI',
     contextLength: 128000,
-    strengths: ['Powerful', 'Detailed'],
+    strengths: ['Fastest', 'Cheapest'],
+    icon: Zap,
+    apiKeyRequired: true
+  },
+
+  // GPT-4.1 Models
+  { 
+    id: 'gpt-4.1-2025-04-14', 
+    name: 'GPT-4.1', 
+    description: 'Flagship GPT-4 model for reliable results',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Reliable', 'Flagship GPT-4'],
     icon: Sparkles,
     apiKeyRequired: true
   },
+  { 
+    id: 'gpt-4.1-mini-2025-04-14', 
+    name: 'GPT-4.1 Mini', 
+    description: 'Efficient GPT-4 model with vision capabilities',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Efficient', 'Vision'],
+    icon: Zap,
+    apiKeyRequired: true
+  },
+
+  // O-Series Reasoning Models
+  { 
+    id: 'o3-2025-04-16', 
+    name: 'O3', 
+    description: 'Powerful reasoning model for multi-step analysis',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Reasoning', 'Multi-step analysis'],
+    icon: BrainCircuit,
+    apiKeyRequired: true
+  },
+  { 
+    id: 'o4-mini-2025-04-16', 
+    name: 'O4 Mini', 
+    description: 'Fast reasoning model optimized for coding and visual tasks',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Fast reasoning', 'Coding', 'Visual'],
+    icon: Zap,
+    apiKeyRequired: true
+  },
+
+  // Legacy OpenAI Models
+  { 
+    id: 'gpt-4o-mini', 
+    name: 'GPT-4o Mini', 
+    description: 'Fast and cheap legacy model with vision (legacy)',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Fast', 'Cheap', 'Legacy'],
+    icon: Zap,
+    apiKeyRequired: true
+  },
+  { 
+    id: 'gpt-4o', 
+    name: 'GPT-4o', 
+    description: 'Older powerful model with vision capabilities (legacy)',
+    category: 'proprietary',
+    provider: 'OpenAI',
+    contextLength: 128000,
+    strengths: ['Powerful', 'Vision', 'Legacy'],
+    icon: Sparkles,
+    apiKeyRequired: true
+  },
+
+  // Google Models
   {
-    id: 'google/gemini-pro',
-    name: 'Gemini Pro',
-    description: 'Google\'s advanced reasoning model',
+    id: 'gemini-pro-1.5',
+    name: 'Gemini Pro 1.5',
+    description: 'Google\'s latest advanced reasoning model with long context',
     category: 'proprietary',
     provider: 'Google',
-    contextLength: 32768,
-    strengths: ['Reasoning', 'General knowledge'],
+    contextLength: 1048576,
+    strengths: ['Long context', 'Advanced reasoning'],
+    icon: BrainCircuit,
+    apiKeyRequired: true
+  },
+  {
+    id: 'gemini-flash-1.5',
+    name: 'Gemini Flash 1.5',
+    description: 'Google\'s fast and efficient model for quick responses',
+    category: 'proprietary',
+    provider: 'Google',
+    contextLength: 1048576,
+    strengths: ['Fast', 'Efficient'],
+    icon: Zap,
+    apiKeyRequired: true
+  },
+
+  // Perplexity Models
+  {
+    id: 'llama-3.1-sonar-small-128k-online',
+    name: 'Perplexity Sonar Small',
+    description: 'Real-time web search with 8B parameter model',
+    category: 'proprietary',
+    provider: 'Perplexity',
+    contextLength: 127072,
+    strengths: ['Web search', 'Real-time'],
+    icon: Server,
+    apiKeyRequired: true
+  },
+  {
+    id: 'llama-3.1-sonar-large-128k-online',
+    name: 'Perplexity Sonar Large',
+    description: 'Real-time web search with 70B parameter model',
+    category: 'proprietary',
+    provider: 'Perplexity',
+    contextLength: 127072,
+    strengths: ['Web search', 'Large model'],
+    icon: BrainCircuit,
+    apiKeyRequired: true
+  },
+  {
+    id: 'llama-3.1-sonar-huge-128k-online',
+    name: 'Perplexity Sonar Huge',
+    description: 'Real-time web search with 405B parameter model',
+    category: 'proprietary',
+    provider: 'Perplexity',
+    contextLength: 127072,
+    strengths: ['Web search', 'Huge model'],
     icon: BrainCircuit,
     apiKeyRequired: true
   },
@@ -473,6 +642,19 @@ export function ModelSelector({ className, isCompact = false, onlyAvailable = fa
               <CommandGroup heading="Google Models">
                 {filteredModels
                   .filter(model => model.provider === 'Google')
+                  .map((model) => (
+                    <ModelCommandItem
+                      key={model.id}
+                      model={model}
+                      activeModelId={activeModel.id}
+                      onSelect={handleSelectModel}
+                      availableApiKeys={availableApiKeys}
+                    />
+                  ))}
+              </CommandGroup>
+              <CommandGroup heading="Perplexity Models">
+                {filteredModels
+                  .filter(model => model.provider === 'Perplexity')
                   .map((model) => (
                     <ModelCommandItem
                       key={model.id}

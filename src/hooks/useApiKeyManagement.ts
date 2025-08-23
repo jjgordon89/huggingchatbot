@@ -11,7 +11,7 @@ export function useApiKeyManagement() {
   // Load API keys from secure storage on mount
   useEffect(() => {
     const loadApiKeys = () => {
-      const providers: ApiProvider[] = ['hugging face', 'openai', 'anthropic', 'google', 'openrouter', 'ollama'];
+      const providers: ApiProvider[] = ['hugging face', 'openai', 'anthropic', 'google', 'openrouter', 'ollama', 'perplexity'];
       const keys: Record<string, boolean> = {};
       
       providers.forEach(provider => {
@@ -86,7 +86,8 @@ export function useApiKeyManagement() {
                      availableApiKeys['anthropic'] || 
                      availableApiKeys['google'] || 
                      availableApiKeys['openrouter'] || 
-                     availableApiKeys['ollama'];
+                     availableApiKeys['ollama'] ||
+                     availableApiKeys['perplexity'];
 
   return {
     availableApiKeys,
